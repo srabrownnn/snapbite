@@ -1,12 +1,12 @@
 'use client';
 
-import React, { useEffect } from "react";
+import React, { useEffect, Suspense } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { SnapBiteStore } from "@/lib/store/demo-store";
 import Link from "next/link";
 import { QrCode, ArrowRight } from "lucide-react";
 
-export default function MenuCompatibilityPage() {
+function MenuCompatibilityContent() {
   const params = useParams();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -54,5 +54,13 @@ export default function MenuCompatibilityPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function MenuCompatibilityPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-slate-50 flex items-center justify-center text-xs text-slate-400">Loading menu...</div>}>
+      <MenuCompatibilityContent />
+    </Suspense>
   );
 }
