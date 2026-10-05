@@ -93,12 +93,40 @@ export function CustomerMenuView({ initialRestaurant, table }: CustomerMenuViewP
     window.addEventListener("snapbite_order_status_change", handleOrderStatusChange);
     window.addEventListener("storage", handleStoreUpdate);
 
+    // Cross-device cloud sync polling every 3.5 seconds
+    const pollInterval = setInterval(async () => {
+      if (trackedOrder) {
+        try {
+          const res = await fetch(`/api/orders/${trackedOrder.id}`, { cache: "no-store" });
+          if (res.ok) {
+            const data = await res.json();
+            if (data.order && data.order.status !== trackedOrder.status) {
+              setTrackedOrder(data.order);
+              if (data.order.status === "ready") {
+                playOrderReadySound();
+                setReadyNotificationOrder(data.order);
+              }
+              refreshData();
+            }
+          }
+        } catch (e) {}
+      } else {
+        SnapBiteStore.syncWithCloudServer(initialRestaurant.id).then((sync) => {
+          const activeForTable = sync.orders.filter(
+            (o) => o.table_id === table.id && !["completed", "cancelled"].includes(o.status)
+          );
+          setActiveOrders(activeForTable);
+        });
+      }
+    }, 3500);
+
     return () => {
       window.removeEventListener("snapbite_store_updated", handleStoreUpdate);
       window.removeEventListener("snapbite_order_status_change", handleOrderStatusChange);
       window.removeEventListener("storage", handleStoreUpdate);
+      clearInterval(pollInterval);
     };
-  }, [initialRestaurant.id, table.id, trackedOrder?.id]);
+  }, [initialRestaurant.id, table.id, trackedOrder?.id, trackedOrder?.status]);
 
   // Filtered menu items
   const filteredItems = useMemo(() => {
@@ -139,7 +167,7 @@ export function CustomerMenuView({ initialRestaurant, table }: CustomerMenuViewP
   }) => {
     setIsSubmittingOrder(true);
     try {
-      const newOrder = SnapBiteStore.createOrder({
+      const newOrder = await SnapBiteStore.createOrderAsync({
         restaurantId: restaurant.id,
         tableId: table.id,
         customerName: params.customerName,

@@ -1,6 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
-import { SnapBiteStore } from "@/lib/store/demo-store";
+import { ServerStore } from "@/lib/server-store";
 import { CartItem } from "@/types/database";
+
+export const dynamic = "force-dynamic";
+
+export async function GET(req: NextRequest) {
+  try {
+    const restaurantId = req.nextUrl.searchParams.get("restaurantId") || undefined;
+    const orders = ServerStore.getOrders(restaurantId);
+    return NextResponse.json({ success: true, orders }, { status: 200 });
+  } catch (error: any) {
+    console.error("GET orders API error:", error);
+    return NextResponse.json({ error: "Failed to fetch orders" }, { status: 500 });
+  }
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -23,20 +36,19 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // SERVER-SIDE VALIDATION:
-    // 1. Check if any items are currently unavailable
+    // Server-side stock availability verification
     for (const cartItem of cartItems as CartItem[]) {
-      const serverItem = SnapBiteStore.getMenuItemById(cartItem.menuItem.id);
+      const serverItem = ServerStore.getMenuItemById(cartItem.menuItem.id);
       if (serverItem && !serverItem.is_available) {
         return NextResponse.json(
-          { error: `Item "${serverItem.name}" is currently sold out and unavailable.` },
+          { error: `Item "${serverItem.name}" is sold out.` },
           { status: 400 }
         );
       }
     }
 
-    // 2. Authoritative price recalculation is performed in SnapBiteStore.createOrder
-    const order = SnapBiteStore.createOrder({
+    // Authoritative order creation on server
+    const order = ServerStore.createOrder({
       restaurantId,
       tableId,
       sessionId,
@@ -49,7 +61,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true, order }, { status: 201 });
   } catch (error: any) {
-    console.error("Order creation API error:", error);
+    console.error("POST order API error:", error);
     return NextResponse.json(
       { error: "Internal server error processing order." },
       { status: 500 }

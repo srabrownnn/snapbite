@@ -41,14 +41,12 @@ const STORAGE_KEYS = {
   CURRENT_RESTAURANT_ID: "snapbite_curr_rest_id",
 };
 
-// Safe localStorage access
 function getStorage<T>(key: string, fallback: T): T {
   if (typeof window === "undefined") return fallback;
   try {
     const item = window.localStorage.getItem(key);
     return item ? JSON.parse(item) : fallback;
   } catch (e) {
-    console.error(`Error reading ${key} from storage:`, e);
     return fallback;
   }
 }
@@ -57,7 +55,6 @@ function setStorage<T>(key: string, value: T): void {
   if (typeof window === "undefined") return;
   try {
     window.localStorage.setItem(key, JSON.stringify(value));
-    // Broadcast event for multi-tab sync
     window.dispatchEvent(new CustomEvent("snapbite_store_updated", { detail: { key } }));
   } catch (e) {
     console.error(`Error writing ${key} to storage:`, e);
@@ -80,12 +77,12 @@ export class SnapBiteStore {
   static updateRestaurant(updated: Partial<Restaurant>): Restaurant {
     const current = this.getRestaurant(updated.id);
     const merged = { ...current, ...updated, updated_at: new Date().toISOString() };
-    const list = this.getAllRestaurants().map(r => r.id === merged.id ? merged : r);
+    const list = this.getAllRestaurants().map(r => (r.id === merged.id ? merged : r));
     setStorage(STORAGE_KEYS.RESTAURANTS, list);
     return merged;
   }
 
-  static createRestaurant(restaurant: Omit<Restaurant, 'id' | 'created_at' | 'updated_at'>): Restaurant {
+  static createRestaurant(restaurant: Omit<Restaurant, "id" | "created_at" | "updated_at">): Restaurant {
     const newRest: Restaurant = {
       ...restaurant,
       id: `rest_${Date.now()}`,
@@ -105,13 +102,11 @@ export class SnapBiteStore {
   }
 
   static getTableByToken(token: string): Table | undefined {
-    const tables = this.getTables();
-    return tables.find(t => t.qr_token === token);
+    return this.getTables().find(t => t.qr_token === token);
   }
 
   static getTableById(id: string): Table | undefined {
-    const tables = this.getTables();
-    return tables.find(t => t.id === id);
+    return this.getTables().find(t => t.id === id);
   }
 
   static addTable(restaurantId: string, tableNumber: string, capacity: number = 4): Table {
@@ -141,6 +136,16 @@ export class SnapBiteStore {
       return t;
     });
     setStorage(STORAGE_KEYS.TABLES, updated);
+
+    // Sync with server API
+    if (typeof window !== "undefined") {
+      fetch("/api/tables", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, ...updates }),
+      }).catch(() => {});
+    }
+
     return updatedTable;
   }
 
@@ -157,7 +162,9 @@ export class SnapBiteStore {
   static getCategories(restaurantId?: string): Category[] {
     const categories = getStorage<Category[]>(STORAGE_KEYS.CATEGORIES, INITIAL_CATEGORIES);
     if (!restaurantId) return categories;
-    return categories.filter(c => c.restaurant_id === restaurantId).sort((a, b) => a.display_order - b.display_order);
+    return categories
+      .filter(c => c.restaurant_id === restaurantId)
+      .sort((a, b) => a.display_order - b.display_order);
   }
 
   static addCategory(restaurantId: string, name: string, description: string = "", image_url: string = ""): Category {
@@ -174,25 +181,6 @@ export class SnapBiteStore {
     };
     setStorage(STORAGE_KEYS.CATEGORIES, [...categories, newCategory]);
     return newCategory;
-  }
-
-  static updateCategory(id: string, updates: Partial<Category>): Category | undefined {
-    const categories = this.getCategories();
-    let updatedCategory: Category | undefined;
-    const updated = categories.map(c => {
-      if (c.id === id) {
-        updatedCategory = { ...c, ...updates };
-        return updatedCategory;
-      }
-      return c;
-    });
-    setStorage(STORAGE_KEYS.CATEGORIES, updated);
-    return updatedCategory;
-  }
-
-  static deleteCategory(id: string): void {
-    const categories = this.getCategories().filter(c => c.id !== id);
-    setStorage(STORAGE_KEYS.CATEGORIES, categories);
   }
 
   // ADD-ONS
@@ -216,25 +204,6 @@ export class SnapBiteStore {
     return newAddon;
   }
 
-  static updateAddon(id: string, updates: Partial<AddOn>): AddOn | undefined {
-    const addons = this.getAddons();
-    let updatedAddon: AddOn | undefined;
-    const updated = addons.map(a => {
-      if (a.id === id) {
-        updatedAddon = { ...a, ...updates };
-        return updatedAddon;
-      }
-      return a;
-    });
-    setStorage(STORAGE_KEYS.ADDONS, updated);
-    return updatedAddon;
-  }
-
-  static deleteAddon(id: string): void {
-    const addons = this.getAddons().filter(a => a.id !== id);
-    setStorage(STORAGE_KEYS.ADDONS, addons);
-  }
-
   // MENU ITEMS
   static getMenuItems(restaurantId?: string): MenuItem[] {
     const items = getStorage<MenuItem[]>(STORAGE_KEYS.MENU_ITEMS, INITIAL_MENU_ITEMS);
@@ -246,7 +215,7 @@ export class SnapBiteStore {
     return this.getMenuItems().find(i => i.id === id);
   }
 
-  static addMenuItem(item: Omit<MenuItem, 'id' | 'created_at' | 'updated_at'>): MenuItem {
+  static addMenuItem(item: Omit<MenuItem, "id" | "created_at" | "updated_at">): MenuItem {
     const items = this.getMenuItems();
     const newItem: MenuItem = {
       ...item,
@@ -255,6 +224,16 @@ export class SnapBiteStore {
       updated_at: new Date().toISOString(),
     };
     setStorage(STORAGE_KEYS.MENU_ITEMS, [newItem, ...items]);
+
+    // Send to server
+    if (typeof window !== "undefined") {
+      fetch("/api/menu", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(item),
+      }).catch(() => {});
+    }
+
     return newItem;
   }
 
@@ -269,6 +248,16 @@ export class SnapBiteStore {
       return i;
     });
     setStorage(STORAGE_KEYS.MENU_ITEMS, updated);
+
+    // Sync with server API
+    if (typeof window !== "undefined") {
+      fetch("/api/menu", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, ...updates }),
+      }).catch(() => {});
+    }
+
     return updatedItem;
   }
 
@@ -277,21 +266,61 @@ export class SnapBiteStore {
     setStorage(STORAGE_KEYS.MENU_ITEMS, items);
   }
 
-  // ORDERS
+  // ORDERS (CROSS-DEVICE SYNC ENGINE)
   static getOrders(restaurantId?: string): Order[] {
     const orders = getStorage<Order[]>(STORAGE_KEYS.ORDERS, INITIAL_ORDERS);
     const tables = this.getTables();
-    // Rehydrate table reference if missing
     const enriched = orders.map(o => ({
       ...o,
       table: o.table || tables.find(t => t.id === o.table_id),
     }));
-    if (!restaurantId) return enriched.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-    return enriched.filter(o => o.restaurant_id === restaurantId).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    if (!restaurantId) {
+      return enriched.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    }
+    return enriched
+      .filter(o => o.restaurant_id === restaurantId)
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   }
 
   static getOrderById(id: string): Order | undefined {
     return this.getOrders().find(o => o.id === id || o.order_number === id);
+  }
+
+  static async createOrderAsync(params: {
+    restaurantId: string;
+    tableId: string;
+    sessionId?: string;
+    customerName?: string;
+    customerPhone?: string;
+    customerNote?: string;
+    cartItems: CartItem[];
+    paymentMethod?: PaymentMethod;
+  }): Promise<Order> {
+    // 1. Create order synchronously in local storage immediately for fast UI feedback
+    const localOrder = this.createOrder(params);
+
+    // 2. Transmit to server API so kitchen screen across the internet receives it immediately!
+    if (typeof window !== "undefined") {
+      try {
+        const res = await fetch("/api/orders", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(params),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.order) {
+            // Replace local placeholder with authoritative server order
+            const currentOrders = this.getOrders().filter(o => o.id !== localOrder.id);
+            setStorage(STORAGE_KEYS.ORDERS, [data.order, ...currentOrders]);
+            return data.order;
+          }
+        }
+      } catch (err) {
+        console.warn("Background server order dispatch error (fallback to local):", err);
+      }
+    }
+    return localOrder;
   }
 
   static createOrder(params: {
@@ -309,15 +338,13 @@ export class SnapBiteStore {
     const orderId = `ord_${Date.now()}`;
     const orderNumber = generateOrderNumber();
 
-    // SERVER-SIDE PRICE VALIDATION
-    // Calculate subtotal from authoritative menu item prices and add-on prices
     let calculatedSubtotal = 0;
     const orderItems: OrderItem[] = [];
 
     for (const cartItem of params.cartItems) {
       const serverMenuItem = this.getMenuItemById(cartItem.menuItem.id);
       const unitPrice = serverMenuItem ? serverMenuItem.price : cartItem.unitPrice;
-      
+
       let addonTotal = 0;
       const orderAddons = cartItem.selectedAddons.map(addon => {
         addonTotal += addon.price;
@@ -345,7 +372,9 @@ export class SnapBiteStore {
     }
 
     const tax = Number(((calculatedSubtotal * (restaurant.tax_percentage || 0)) / 100).toFixed(2));
-    const serviceCharge = Number(((calculatedSubtotal * (restaurant.service_charge_percentage || 0)) / 100).toFixed(2));
+    const serviceCharge = Number(
+      ((calculatedSubtotal * (restaurant.service_charge_percentage || 0)) / 100).toFixed(2)
+    );
     const total = Number((calculatedSubtotal + tax + serviceCharge).toFixed(2));
 
     const newOrder: Order = {
@@ -375,7 +404,6 @@ export class SnapBiteStore {
     const currentOrders = this.getOrders();
     setStorage(STORAGE_KEYS.ORDERS, [newOrder, ...currentOrders]);
 
-    // Mark table as occupied
     if (table && table.status === "available") {
       this.updateTable(table.id, { status: "occupied" });
     }
@@ -383,20 +411,16 @@ export class SnapBiteStore {
     return newOrder;
   }
 
-  // STATE MACHINE STATUS PROGRESSION
-  // PENDING -> ACCEPTED -> PREPARING -> READY -> SERVED -> COMPLETED (or CANCELLED)
   static updateOrderStatus(orderId: string, newStatus: OrderStatus): Order | undefined {
     const orders = this.getOrders();
     let updatedOrder: Order | undefined;
 
     const updated = orders.map(o => {
       if (o.id === orderId) {
-        // Validation check for status transition
         updatedOrder = {
           ...o,
           status: newStatus,
           updated_at: new Date().toISOString(),
-          // If status is completed and payment is cash, mark as paid if completed
           payment_status: newStatus === "completed" && o.payment_status === "unpaid" ? "paid" : o.payment_status,
         };
         return updatedOrder;
@@ -406,18 +430,24 @@ export class SnapBiteStore {
 
     setStorage(STORAGE_KEYS.ORDERS, updated);
 
-    // If order is completed or cancelled, check if table has any other active orders
+    // Sync to server API across devices
+    if (typeof window !== "undefined") {
+      fetch(`/api/orders/${orderId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      }).catch(() => {});
+    }
+
     if (updatedOrder && (newStatus === "completed" || newStatus === "cancelled") && updatedOrder.table_id) {
       const activeForTable = updated.filter(
-        o => o.table_id === updatedOrder?.table_id &&
-        !["completed", "cancelled"].includes(o.status)
+        o => o.table_id === updatedOrder?.table_id && !["completed", "cancelled"].includes(o.status)
       );
       if (activeForTable.length === 0) {
         this.updateTable(updatedOrder.table_id, { status: "available" });
       }
     }
 
-    // Trigger notification event for customers/kitchen
     if (typeof window !== "undefined" && updatedOrder) {
       window.dispatchEvent(
         new CustomEvent("snapbite_order_status_change", {
@@ -447,6 +477,15 @@ export class SnapBiteStore {
     });
 
     setStorage(STORAGE_KEYS.ORDERS, updated);
+
+    if (typeof window !== "undefined") {
+      fetch(`/api/orders/${orderId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ paymentStatus: status, paymentMethod: method }),
+      }).catch(() => {});
+    }
+
     return updatedOrder;
   }
 
@@ -477,10 +516,14 @@ export class SnapBiteStore {
     const current = this.getWaiterRequests();
     setStorage(STORAGE_KEYS.WAITER_REQUESTS, [newRequest, ...current]);
 
+    // Transmit to server
     if (typeof window !== "undefined") {
-      window.dispatchEvent(
-        new CustomEvent("snapbite_waiter_call", { detail: { request: newRequest } })
-      );
+      fetch("/api/waiter-requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ restaurantId, tableId, type }),
+      }).catch(() => {});
+      window.dispatchEvent(new CustomEvent("snapbite_waiter_call", { detail: { request: newRequest } }));
     }
     return newRequest;
   }
@@ -494,6 +537,14 @@ export class SnapBiteStore {
       return r;
     });
     setStorage(STORAGE_KEYS.WAITER_REQUESTS, updated);
+
+    if (typeof window !== "undefined") {
+      fetch("/api/waiter-requests", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      }).catch(() => {});
+    }
   }
 
   // REVIEWS
@@ -522,7 +573,7 @@ export class SnapBiteStore {
       rating: Math.max(1, Math.min(5, params.rating)),
       review_text: params.reviewText,
       customer_name: params.customerName || "Verified Guest",
-      is_approved: true, // Auto-approved by default in demo
+      is_approved: true,
       created_at: new Date().toISOString(),
     };
     const reviews = this.getReviews();
@@ -547,6 +598,46 @@ export class SnapBiteStore {
   static deleteReview(id: string): void {
     const reviews = this.getReviews().filter(r => r.id !== id);
     setStorage(STORAGE_KEYS.REVIEWS, reviews);
+  }
+
+  // CLOUD SYNC FETCHER: Called by Kitchen Dashboard & Customer Phone to sync over internet
+  static async syncWithCloudServer(restaurantId?: string): Promise<{
+    hasNewOrders: boolean;
+    orders: Order[];
+    waiterRequests: WaiterRequest[];
+  }> {
+    if (typeof window === "undefined") return { hasNewOrders: false, orders: [], waiterRequests: [] };
+    try {
+      const currentOrders = this.getOrders();
+      const currentCount = currentOrders.length;
+
+      // 1. Fetch live orders
+      const ordersRes = await fetch(`/api/orders?restaurantId=${restaurantId || ""}`, { cache: "no-store" });
+      let freshOrders: Order[] = currentOrders;
+      if (ordersRes.ok) {
+        const data = await ordersRes.json();
+        if (Array.isArray(data.orders)) {
+          freshOrders = data.orders;
+          setStorage(STORAGE_KEYS.ORDERS, freshOrders);
+        }
+      }
+
+      // 2. Fetch live waiter calls
+      const waiterRes = await fetch(`/api/waiter-requests?restaurantId=${restaurantId || ""}`, { cache: "no-store" });
+      let freshWaiter: WaiterRequest[] = [];
+      if (waiterRes.ok) {
+        const data = await waiterRes.json();
+        if (Array.isArray(data.requests)) {
+          freshWaiter = data.requests;
+          setStorage(STORAGE_KEYS.WAITER_REQUESTS, freshWaiter);
+        }
+      }
+
+      const hasNewOrders = freshOrders.length > currentCount;
+      return { hasNewOrders, orders: freshOrders, waiterRequests: freshWaiter };
+    } catch (e) {
+      return { hasNewOrders: false, orders: this.getOrders(), waiterRequests: this.getWaiterRequests() };
+    }
   }
 
   // RESET TO DEMO DATA

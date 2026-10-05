@@ -30,11 +30,24 @@ export default function AdminWaiterRequestsPage() {
 
     window.addEventListener("snapbite_store_updated", handleUpdate);
     window.addEventListener("snapbite_waiter_call", handleCall);
+
+    let prevCount = requests.length;
+    const syncInterval = setInterval(async () => {
+      const syncResult = await SnapBiteStore.syncWithCloudServer(restaurant.id);
+      const pendingCount = syncResult.waiterRequests.filter((r) => r.status === "pending").length;
+      if (pendingCount > prevCount) {
+        playWaiterCallAlertSound();
+      }
+      prevCount = pendingCount;
+      setRequests(syncResult.waiterRequests);
+    }, 3000);
+
     return () => {
       window.removeEventListener("snapbite_store_updated", handleUpdate);
       window.removeEventListener("snapbite_waiter_call", handleCall);
+      clearInterval(syncInterval);
     };
-  }, []);
+  }, [restaurant.id, requests.length]);
 
   const handleResolve = (id: string) => {
     SnapBiteStore.resolveWaiterRequest(id);

@@ -67,6 +67,15 @@ export default function KitchenDashboardPage() {
     window.addEventListener("snapbite_order_status_change", handleUpdate);
     window.addEventListener("storage", handleUpdate);
 
+    // Active cloud sync every 3 seconds for tickets arriving from customer phones across internet
+    const cloudSyncInterval = setInterval(async () => {
+      const syncResult = await SnapBiteStore.syncWithCloudServer(restaurant.id);
+      if (syncResult.hasNewOrders && soundRef.current) {
+        playNewKitchenOrderSound();
+      }
+      setOrders(syncResult.orders);
+    }, 3000);
+
     // Minute timer to update elapsed timers
     const timerInterval = setInterval(() => {
       setCurrentTime(Date.now());
@@ -77,6 +86,7 @@ export default function KitchenDashboardPage() {
       window.removeEventListener("snapbite_order_status_change", handleUpdate);
       window.removeEventListener("storage", handleUpdate);
       clearInterval(timerInterval);
+      clearInterval(cloudSyncInterval);
     };
   }, [restaurant.id, lastOrderCount]);
 

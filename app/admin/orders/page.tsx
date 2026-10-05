@@ -51,11 +51,18 @@ export default function AdminOrdersPage() {
     const handleUpdate = () => loadOrders();
     window.addEventListener("snapbite_store_updated", handleUpdate);
     window.addEventListener("snapbite_order_status_change", handleUpdate);
+
+    const syncInterval = setInterval(async () => {
+      const result = await SnapBiteStore.syncWithCloudServer(restaurant.id);
+      setOrders(result.orders);
+    }, 3500);
+
     return () => {
       window.removeEventListener("snapbite_store_updated", handleUpdate);
       window.removeEventListener("snapbite_order_status_change", handleUpdate);
+      clearInterval(syncInterval);
     };
-  }, []);
+  }, [restaurant.id]);
 
   const handleStatusChange = (orderId: string, newStatus: OrderStatus) => {
     SnapBiteStore.updateOrderStatus(orderId, newStatus);
