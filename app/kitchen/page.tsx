@@ -5,6 +5,7 @@ import { Order, OrderStatus } from "@/types/database";
 import { SnapBiteStore } from "@/lib/store/demo-store";
 import { formatTime, getMinutesAgo } from "@/lib/utils";
 import { playNewKitchenOrderSound } from "@/lib/audio";
+import { printThermalReceipt } from "@/lib/receipt/printer";
 import {
   ChefHat,
   Volume2,
@@ -20,6 +21,7 @@ import {
   RefreshCw,
   UtensilsCrossed,
   Filter,
+  Printer,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -35,6 +37,7 @@ export default function KitchenDashboardPage() {
   const restaurant = SnapBiteStore.getRestaurant();
   const [orders, setOrders] = useState<Order[]>([]);
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [autoPrintEnabled, setAutoPrintEnabled] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [lastOrderCount, setLastOrderCount] = useState(0);
   const [currentTime, setCurrentTime] = useState(Date.now());
@@ -43,21 +46,57 @@ export default function KitchenDashboardPage() {
   const soundRef = useRef(soundEnabled);
   soundRef.current = soundEnabled;
 
+  const autoPrintRef = useRef(autoPrintEnabled);
+  autoPrintRef.current = autoPrintEnabled;
+
+  const printedOrderIdsRef = useRef<Set<string>>(new Set());
+
+  // Load auto-print preference from browser storage
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("snapbite_auto_print_bills");
+      if (saved === "true") {
+        setAutoPrintEnabled(true);
+      }
+    }
+  }, []);
+
+  const toggleAutoPrint = () => {
+    const next = !autoPrintEnabled;
+    setAutoPrintEnabled(next);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("snapbite_auto_print_bills", String(next));
+    }
+  };
+
   const loadOrders = () => {
     const list = SnapBiteStore.getOrders(restaurant.id);
     setOrders(list);
     return list;
   };
 
+  const checkAndAutoPrint = (ordersList: Order[]) => {
+    if (!autoPrintRef.current) return;
+    ordersList.forEach((order) => {
+      if (!printedOrderIdsRef.current.has(order.id) && order.status === "pending") {
+        printedOrderIdsRef.current.add(order.id);
+        printThermalReceipt(order, restaurant);
+      }
+    });
+  };
+
   useEffect(() => {
     const initialList = loadOrders();
     setLastOrderCount(initialList.length);
+    // Mark initial list as already known so page reload doesn't re-print old orders
+    initialList.forEach((o) => printedOrderIdsRef.current.add(o.id));
 
     // Order update listener
     const handleUpdate = () => {
       const updated = SnapBiteStore.getOrders(restaurant.id);
-      if (updated.length > lastOrderCount && soundRef.current) {
-        playNewKitchenOrderSound();
+      if (updated.length > lastOrderCount) {
+        if (soundRef.current) playNewKitchenOrderSound();
+        checkAndAutoPrint(updated);
       }
       setLastOrderCount(updated.length);
       setOrders(updated);
@@ -70,8 +109,9 @@ export default function KitchenDashboardPage() {
     // Active cloud sync every 3 seconds for tickets arriving from customer phones across internet
     const cloudSyncInterval = setInterval(async () => {
       const syncResult = await SnapBiteStore.syncWithCloudServer(restaurant.id);
-      if (syncResult.hasNewOrders && soundRef.current) {
-        playNewKitchenOrderSound();
+      if (syncResult.hasNewOrders) {
+        if (soundRef.current) playNewKitchenOrderSound();
+        checkAndAutoPrint(syncResult.orders);
       }
       setOrders(syncResult.orders);
     }, 3000);
@@ -180,6 +220,24 @@ export default function KitchenDashboardPage() {
 
         {/* Right Controls */}
         <div className="flex items-center gap-2">
+          {/* Auto-Print Bills Toggle */}
+          <button
+            onClick={toggleAutoPrint}
+            title={
+              autoPrintEnabled
+                ? "Auto-print thermal bill receipt is ENABLED for incoming orders"
+                : "Auto-print thermal bill receipt is DISABLED"
+            }
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition-all ${
+              autoPrintEnabled
+                ? "bg-amber-500/20 border-amber-500/50 text-amber-300 shadow-sm"
+                : "bg-slate-800/80 border-slate-700 text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            <Printer className="w-4 h-4 text-amber-400" />
+            <span>{autoPrintEnabled ? "Auto-Print ON" : "Auto-Print OFF"}</span>
+          </button>
+
           {/* Sound Toggle */}
           <button
             onClick={() => {
@@ -292,18 +350,28 @@ export default function KitchenDashboardPage() {
                                 )}
                               </div>
 
-                              {/* Elapsed Urgency Timer */}
-                              <div
-                                className={`px-2 py-1 rounded-lg text-xs font-black flex items-center gap-1 ${
-                                  isCritical
-                                    ? "bg-red-500/20 text-red-400 border border-red-500/40"
-                                    : isUrgent
-                                    ? "bg-amber-500/20 text-amber-400 border border-amber-500/40"
-                                    : "bg-slate-800 text-slate-300"
-                                }`}
-                              >
-                                <Clock className="w-3.5 h-3.5" />
-                                <span>{minutesAgo}m ago</span>
+                              {/* Ticket Header Actions: Print Receipt & Urgency Timer */}
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                <button
+                                  onClick={() => printThermalReceipt(order, restaurant)}
+                                  className="p-1.5 rounded-lg bg-slate-800 hover:bg-orange-600 text-slate-300 hover:text-white transition-all border border-slate-700/80 active:scale-95"
+                                  title="Print Bill Receipt / Kitchen Ticket"
+                                >
+                                  <Printer className="w-3.5 h-3.5" />
+                                </button>
+
+                                <div
+                                  className={`px-2 py-1 rounded-lg text-xs font-black flex items-center gap-1 ${
+                                    isCritical
+                                      ? "bg-red-500/20 text-red-400 border border-red-500/40"
+                                      : isUrgent
+                                      ? "bg-amber-500/20 text-amber-400 border border-amber-500/40"
+                                      : "bg-slate-800 text-slate-300"
+                                  }`}
+                                >
+                                  <Clock className="w-3.5 h-3.5" />
+                                  <span>{minutesAgo}m ago</span>
+                                </div>
                               </div>
                             </div>
 

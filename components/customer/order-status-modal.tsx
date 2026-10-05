@@ -13,6 +13,7 @@ interface OrderStatusModalProps {
   onRequestBill: () => void;
   onCallWaiter: () => void;
   onLeaveReview: () => void;
+  onViewBill?: () => void;
 }
 
 const STATUS_STEPS: { status: OrderStatus; label: string; desc: string }[] = [
@@ -31,6 +32,7 @@ export function OrderStatusModal({
   onRequestBill,
   onCallWaiter,
   onLeaveReview,
+  onViewBill,
 }: OrderStatusModalProps) {
   if (!isOpen || !order) return null;
 
@@ -182,10 +184,23 @@ export function OrderStatusModal({
                 ))}
               </div>
 
-              <div className="pt-3 border-t border-slate-200 flex justify-between text-sm font-extrabold text-slate-900">
+              <div className="pt-3 border-t border-slate-200 flex justify-between items-center text-sm font-extrabold text-slate-900">
                 <span>Total</span>
                 <span className="text-orange-600">{formatCurrency(order.total, restaurant.currency)}</span>
               </div>
+
+              {onViewBill && (
+                <button
+                  onClick={() => {
+                    onClose();
+                    onViewBill();
+                  }}
+                  className="w-full mt-2 py-2 px-3 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 transition-colors"
+                >
+                  <Receipt className="w-3.5 h-3.5 text-slate-600" />
+                  <span>View Printable Bill & Tax Breakdown</span>
+                </button>
+              )}
             </div>
           )}
 
@@ -209,22 +224,37 @@ export function OrderStatusModal({
         </div>
 
         {/* Bottom Actions */}
-        <div className="p-4 border-t border-slate-200 bg-slate-50 flex items-center gap-3">
-          <button
-            onClick={onCallWaiter}
-            className="flex-1 py-2.5 px-3 bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-colors"
-          >
-            <Bell className="w-4 h-4 text-amber-500" />
-            <span>Call Waiter</span>
-          </button>
+        <div className="p-4 border-t border-slate-200 bg-slate-50 flex flex-col gap-2">
+          {onViewBill && (
+            <button
+              onClick={() => {
+                onClose();
+                onViewBill();
+              }}
+              className="w-full py-2.5 px-4 bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-2 shadow-sm transition-colors"
+            >
+              <Receipt className="w-4 h-4" />
+              <span>View Itemized Bill / Receipt</span>
+            </button>
+          )}
 
-          <button
-            onClick={onRequestBill}
-            className="flex-1 py-2.5 px-3 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-colors"
-          >
-            <Receipt className="w-4 h-4" />
-            <span>Request Bill</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onCallWaiter}
+              className="flex-1 py-2.5 px-3 bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-colors"
+            >
+              <Bell className="w-4 h-4 text-amber-500" />
+              <span>Call Waiter</span>
+            </button>
+
+            <button
+              onClick={onRequestBill}
+              className="flex-1 py-2.5 px-3 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-colors"
+            >
+              <Receipt className="w-4 h-4" />
+              <span>Request Waiter Bill</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>

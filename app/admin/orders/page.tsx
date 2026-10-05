@@ -5,6 +5,7 @@ import { AdminLayout } from "@/components/admin/admin-layout";
 import { SnapBiteStore } from "@/lib/store/demo-store";
 import { Order, OrderStatus, PaymentStatus } from "@/types/database";
 import { formatCurrency, formatDateTime } from "@/lib/utils";
+import { printThermalReceipt } from "@/lib/receipt/printer";
 import {
   ClipboardList,
   Search,
@@ -17,6 +18,7 @@ import {
   User,
   Phone,
   MessageSquare,
+  Printer,
 } from "lucide-react";
 
 const FILTER_TABS: { label: string; value: string }[] = [
@@ -228,15 +230,27 @@ export default function AdminOrdersPage() {
                         </span>
                       </td>
                       <td className="p-4 text-right">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedOrder(order);
-                          }}
-                          className="px-3 py-1.5 bg-slate-100 hover:bg-orange-600 hover:text-white rounded-lg font-bold text-xs transition-colors"
-                        >
-                          Details
-                        </button>
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              printThermalReceipt(order, restaurant);
+                            }}
+                            title="Print Thermal Bill Receipt"
+                            className="p-1.5 text-slate-500 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
+                          >
+                            <Printer className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedOrder(order);
+                            }}
+                            className="px-3 py-1.5 bg-slate-100 hover:bg-orange-600 hover:text-white rounded-lg font-bold text-xs transition-colors"
+                          >
+                            Details
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -260,12 +274,22 @@ export default function AdminOrdersPage() {
                     {formatDateTime(selectedOrder.created_at)}
                   </p>
                 </div>
-                <button
-                  onClick={() => setSelectedOrder(null)}
-                  className="p-1 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100"
-                >
-                  <X className="w-5 h-5" />
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => printThermalReceipt(selectedOrder, restaurant)}
+                    className="px-3 py-1.5 bg-orange-50 hover:bg-orange-100 text-orange-700 font-bold text-xs rounded-xl flex items-center gap-1.5 border border-orange-200 transition-colors"
+                    title="Print Thermal Bill Receipt"
+                  >
+                    <Printer className="w-3.5 h-3.5" />
+                    <span>Print Bill</span>
+                  </button>
+                  <button
+                    onClick={() => setSelectedOrder(null)}
+                    className="p-1 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
               </div>
 
               {/* Guest Info */}
@@ -397,6 +421,17 @@ export default function AdminOrdersPage() {
                     Mark Paid ✓
                   </button>
                 </div>
+              </div>
+
+              {/* Print Thermal Receipt Button */}
+              <div className="pt-2 border-t border-slate-100">
+                <button
+                  onClick={() => printThermalReceipt(selectedOrder, restaurant)}
+                  className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-2xl flex items-center justify-center gap-2 transition-all shadow-md active:scale-98"
+                >
+                  <Printer className="w-4 h-4 text-orange-400" />
+                  <span>Print Thermal Bill / Receipt (80mm / 58mm)</span>
+                </button>
               </div>
             </div>
           </div>

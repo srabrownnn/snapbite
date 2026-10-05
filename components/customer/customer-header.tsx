@@ -2,7 +2,7 @@
 
 import React from "react";
 import { Restaurant, Table } from "@/types/database";
-import { ShoppingBag, Bell, Search, UtensilsCrossed } from "lucide-react";
+import { ShoppingBag, Bell, Search, UtensilsCrossed, Receipt } from "lucide-react";
 import { useCart } from "@/lib/store/cart-context";
 
 interface CustomerHeaderProps {
@@ -15,6 +15,7 @@ interface CustomerHeaderProps {
   searchQuery: string;
   setSearchQuery: (q: string) => void;
   onOpenActiveOrder?: () => void;
+  onOpenBill?: () => void;
   activeOrderCount?: number;
 }
 
@@ -28,6 +29,7 @@ export function CustomerHeader({
   searchQuery,
   setSearchQuery,
   onOpenActiveOrder,
+  onOpenBill,
   activeOrderCount = 0,
 }: CustomerHeaderProps) {
   const { totalCount } = useCart();
@@ -80,6 +82,18 @@ export function CustomerHeader({
           >
             <Search className="w-5 h-5" />
           </button>
+
+          {/* Customer Bill Button */}
+          {onOpenBill && (
+            <button
+              onClick={onOpenBill}
+              aria-label="View Dining Bill"
+              title="View Dining Bill / Receipt"
+              className="p-2 rounded-full text-slate-700 hover:text-orange-600 hover:bg-orange-50 active:scale-95 transition-all relative"
+            >
+              <Receipt className="w-5 h-5 text-orange-600" />
+            </button>
+          )}
 
           {/* Waiter Call Button */}
           <button

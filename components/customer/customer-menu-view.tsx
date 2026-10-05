@@ -13,6 +13,7 @@ import { OrderStatusModal } from "@/components/customer/order-status-modal";
 import { ReadyNotificationBanner } from "@/components/customer/ready-notification-banner";
 import { WaiterCallModal } from "@/components/customer/waiter-call-modal";
 import { ReviewsModal } from "@/components/customer/reviews-modal";
+import { CustomerBillModal } from "@/components/customer/customer-bill-modal";
 import { useCart } from "@/lib/store/cart-context";
 import { playOrderReadySound } from "@/lib/audio";
 import { formatCurrency } from "@/lib/utils";
@@ -42,6 +43,7 @@ export function CustomerMenuView({ initialRestaurant, table }: CustomerMenuViewP
   const [isReviewsOpen, setIsReviewsOpen] = useState(false);
   const [reviewFocusItem, setReviewFocusItem] = useState<MenuItem | null>(null);
   const [isOrderStatusOpen, setIsOrderStatusOpen] = useState(false);
+  const [isCustomerBillOpen, setIsCustomerBillOpen] = useState(false);
   const [trackedOrder, setTrackedOrder] = useState<Order | null>(null);
   const [readyNotificationOrder, setReadyNotificationOrder] = useState<Order | null>(null);
   const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
@@ -233,6 +235,12 @@ export function CustomerMenuView({ initialRestaurant, table }: CustomerMenuViewP
         table={table}
         onOpenCart={() => setIsCartOpen(true)}
         onOpenWaiterCall={() => setIsWaiterCallOpen(true)}
+        onOpenBill={() => {
+          if (activeOrders.length > 0 && !trackedOrder) {
+            setTrackedOrder(activeOrders[0]);
+          }
+          setIsCustomerBillOpen(true);
+        }}
         onToggleSearch={() => setIsSearchOpen((prev) => !prev)}
         isSearchOpen={isSearchOpen}
         searchQuery={searchQuery}
@@ -384,10 +392,19 @@ export function CustomerMenuView({ initialRestaurant, table }: CustomerMenuViewP
         onClose={() => setIsOrderStatusOpen(false)}
         onRequestBill={() => handleWaiterRequest("request_bill")}
         onCallWaiter={() => handleWaiterRequest("call_waiter")}
+        onViewBill={() => setIsCustomerBillOpen(true)}
         onLeaveReview={() => {
           setReviewFocusItem(null);
           setIsReviewsOpen(true);
         }}
+      />
+
+      <CustomerBillModal
+        order={trackedOrder || (activeOrders.length > 0 ? activeOrders[0] : null)}
+        restaurant={restaurant}
+        isOpen={isCustomerBillOpen}
+        onClose={() => setIsCustomerBillOpen(false)}
+        onRequestWaiterBill={() => handleWaiterRequest("request_bill")}
       />
 
       <WaiterCallModal
