@@ -122,6 +122,16 @@ export class SnapBiteStore {
     };
     const updated = [...tables, newTable];
     setStorage(STORAGE_KEYS.TABLES, updated);
+
+    // Sync to cloud server API immediately
+    if (typeof window !== "undefined") {
+      fetch("/api/tables", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newTable),
+      }).catch((err) => console.error("Error creating table on cloud:", err));
+    }
+
     return newTable;
   }
 
@@ -150,12 +160,62 @@ export class SnapBiteStore {
   }
 
   static regenerateQRToken(id: string): Table | undefined {
-    return this.updateTable(id, { qr_token: generateToken("tbl_tok") });
+    const newTok = generateToken("tbl_tok");
+    return this.updateTable(id, { qr_token: newTok });
   }
 
   static deleteTable(id: string): void {
     const tables = this.getTables().filter(t => t.id !== id);
     setStorage(STORAGE_KEYS.TABLES, tables);
+
+    if (typeof window !== "undefined") {
+      fetch(`/api/tables?id=${id}`, { method: "DELETE" }).catch(() => {});
+    }
+  }
+
+  static saveTable(table: Table): void {
+    const tables = this.getTables();
+    const index = tables.findIndex((t) => t.id === table.id || t.qr_token === table.qr_token);
+    let updated: Table[];
+    if (index >= 0) {
+      updated = tables.map((t, i) => (i === index ? { ...t, ...table } : t));
+    } else {
+      updated = [...tables, table];
+    }
+    setStorage(STORAGE_KEYS.TABLES, updated);
+  }
+
+  static async syncTablesWithServer(restaurantId?: string): Promise<Table[]> {
+    if (typeof window === "undefined") return this.getTables(restaurantId);
+    try {
+      const localTables = this.getTables();
+
+      // Send local tables to server in bulk to ensure cloud has any tables created offline/locally
+      if (localTables.length > 0) {
+        fetch("/api/tables", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ tables: localTables }),
+        }).catch(() => {});
+      }
+
+      const res = await fetch(`/api/tables?restaurantId=${restaurantId || ""}`, { cache: "no-store" });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data.tables) && data.tables.length > 0) {
+          const serverTables: Table[] = data.tables;
+          const mergedMap = new Map<string, Table>();
+          localTables.forEach((t) => mergedMap.set(t.id, t));
+          serverTables.forEach((t) => mergedMap.set(t.id, t));
+          const merged = Array.from(mergedMap.values());
+          setStorage(STORAGE_KEYS.TABLES, merged);
+          return restaurantId ? merged.filter((t) => t.restaurant_id === restaurantId) : merged;
+        }
+      }
+    } catch (e) {
+      // Ignore network errors
+    }
+    return this.getTables(restaurantId);
   }
 
   // CATEGORIES

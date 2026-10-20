@@ -49,8 +49,11 @@ export default function AdminTablesPage() {
     loadTables();
     if (typeof window !== "undefined") {
       setOrigin(window.location.origin);
+      SnapBiteStore.syncTablesWithServer(restaurant.id).then((synced) => {
+        if (synced && synced.length > 0) setTables(synced);
+      });
     }
-  }, []);
+  }, [restaurant.id]);
 
   const openQrModal = async (tbl: Table) => {
     setSelectedTable(tbl);

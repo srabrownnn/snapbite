@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useParams } from "next/navigation";
 import { SnapBiteStore } from "@/lib/store/demo-store";
+import { Table, Restaurant } from "@/types/database";
 import { CartProvider } from "@/lib/store/cart-context";
 import { CustomerMenuView } from "@/components/customer/customer-menu-view";
-import { QrCode, AlertCircle, ArrowRight } from "lucide-react";
+import { QrCode, AlertCircle, ArrowRight, Loader2 } from "lucide-react";
 import Link from "next/link";
 
 export default function CustomerTablePage() {
@@ -13,18 +14,102 @@ export default function CustomerTablePage() {
   const restaurantSlug = (params?.restaurantSlug as string) || "restaurant";
   const tableToken = (params?.tableToken as string) || "";
 
-  // Lookup restaurant & table
+  // Lookup restaurant
   const restaurant = useMemo(() => {
     return SnapBiteStore.getRestaurant(restaurantSlug);
   }, [restaurantSlug]);
 
-  const table = useMemo(() => {
-    return SnapBiteStore.getTableByToken(tableToken);
-  }, [tableToken]);
+  // Lookup table from local storage or cloud server
+  const [table, setTable] = useState<Table | null>(() => {
+    return SnapBiteStore.getTableByToken(tableToken) || null;
+  });
+  const [isLoading, setIsLoading] = useState(!table);
+  const [availableTables, setAvailableTables] = useState<Table[]>(() => {
+    return SnapBiteStore.getTables(restaurant.id);
+  });
 
-  // If table token not found, display friendly recovery screen
+  useEffect(() => {
+    let isMounted = true;
+
+    async function resolveTable() {
+      // If table is already found locally, sync fresh tables in background
+      if (table) {
+        SnapBiteStore.syncTablesWithServer(restaurant.id).then((fresh) => {
+          if (isMounted && fresh && fresh.length > 0) setAvailableTables(fresh);
+        });
+        return;
+      }
+
+      setIsLoading(true);
+      try {
+        // Query cloud server for this specific table token
+        const res = await fetch(`/api/tables?token=${encodeURIComponent(tableToken)}`, {
+          cache: "no-store",
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data.table) {
+            SnapBiteStore.saveTable(data.table);
+            if (isMounted) {
+              setTable(data.table);
+              setIsLoading(false);
+            }
+            return;
+          }
+        }
+
+        // If not found directly, sync all tables from server
+        const allRes = await fetch(`/api/tables?restaurantId=${restaurant.id}`, {
+          cache: "no-store",
+        });
+        if (allRes.ok) {
+          const allData = await allRes.json();
+          if (Array.isArray(allData.tables)) {
+            const match = allData.tables.find((t: Table) => t.qr_token === tableToken);
+            if (isMounted) {
+              setAvailableTables(allData.tables);
+              if (match) {
+                SnapBiteStore.saveTable(match);
+                setTable(match);
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Error fetching table from cloud server:", err);
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    resolveTable();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [tableToken, restaurant.id, table]);
+
+  // Loading state while verifying token with server
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-slate-900 text-white flex flex-col items-center justify-center p-4 selection:bg-orange-500">
+        <div className="w-16 h-16 rounded-2xl bg-orange-600 flex items-center justify-center text-white mb-4 shadow-xl shadow-orange-600/30 animate-pulse">
+          <QrCode className="w-8 h-8" />
+        </div>
+        <div className="flex items-center gap-2 mb-2">
+          <Loader2 className="w-5 h-5 text-orange-400 animate-spin" />
+          <h2 className="text-base font-extrabold tracking-tight">Connecting to Table...</h2>
+        </div>
+        <p className="text-xs text-slate-400">Loading {restaurant.name} digital menu</p>
+      </div>
+    );
+  }
+
+  // If table token not recognized anywhere
   if (!table) {
-    const allTables = SnapBiteStore.getTables(restaurant.id);
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
         <div className="max-w-md w-full bg-white rounded-3xl p-6 sm:p-8 shadow-xl border border-slate-200 text-center">
@@ -33,7 +118,7 @@ export default function CustomerTablePage() {
           </div>
           <h2 className="text-xl font-extrabold text-slate-900">Table Not Recognized</h2>
           <p className="text-xs text-slate-500 mt-2 leading-relaxed">
-            The QR code token (<code className="bg-slate-100 px-1 py-0.5 rounded text-orange-600">{tableToken}</code>) is invalid or has expired. Please re-scan your tabletop code or select a test table below.
+            The QR code token (<code className="bg-slate-100 px-1 py-0.5 rounded text-orange-600 font-mono text-[11px]">{tableToken}</code>) is invalid or has expired. Please re-scan your tabletop code or select a table below.
           </p>
 
           <div className="mt-6 text-left">
@@ -41,7 +126,7 @@ export default function CustomerTablePage() {
               Available Tables:
             </h3>
             <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto no-scrollbar">
-              {allTables.slice(0, 8).map((tbl) => (
+              {availableTables.slice(0, 8).map((tbl) => (
                 <Link
                   key={tbl.id}
                   href={`/r/${restaurant.slug}/t/${tbl.qr_token}`}

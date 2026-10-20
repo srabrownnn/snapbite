@@ -1,6 +1,9 @@
 // Server-Side Authoritative Shared State Store
 // Supports both in-memory cloud persistence and Supabase PostgreSQL
 
+import fs from "fs";
+import path from "path";
+import os from "os";
 import {
   Restaurant,
   Table,
@@ -29,6 +32,32 @@ import {
 } from "./store/demo-data";
 import { generateOrderNumber, generateToken } from "./utils";
 
+const PERSISTENCE_FILE = path.join(os.tmpdir(), "snapbite_server_store.json");
+
+function loadPersistedState() {
+  try {
+    if (fs.existsSync(PERSISTENCE_FILE)) {
+      const content = fs.readFileSync(PERSISTENCE_FILE, "utf-8");
+      if (content) {
+        return JSON.parse(content);
+      }
+    }
+  } catch (e) {
+    // Ignore read errors
+  }
+  return null;
+}
+
+export function savePersistedState() {
+  try {
+    if (global.__SNAPBITE_SERVER_STORE__) {
+      fs.writeFileSync(PERSISTENCE_FILE, JSON.stringify(global.__SNAPBITE_SERVER_STORE__), "utf-8");
+    }
+  } catch (e) {
+    // Ignore write errors
+  }
+}
+
 // Global cache on Node.js global to persist across API route invocations in serverless warm containers
 declare global {
   // eslint-disable-next-line no-var
@@ -45,19 +74,24 @@ declare global {
 }
 
 if (!global.__SNAPBITE_SERVER_STORE__) {
-  global.__SNAPBITE_SERVER_STORE__ = {
-    restaurants: [INITIAL_RESTAURANT],
-    tables: INITIAL_TABLES,
-    categories: INITIAL_CATEGORIES,
-    menuItems: INITIAL_MENU_ITEMS,
-    addons: INITIAL_ADDONS,
-    orders: INITIAL_ORDERS,
-    reviews: INITIAL_REVIEWS,
-    waiterRequests: INITIAL_WAITER_REQUESTS,
-  };
+  const persisted = loadPersistedState();
+  if (persisted && Array.isArray(persisted.tables) && persisted.tables.length > 0) {
+    global.__SNAPBITE_SERVER_STORE__ = persisted;
+  } else {
+    global.__SNAPBITE_SERVER_STORE__ = {
+      restaurants: [INITIAL_RESTAURANT],
+      tables: INITIAL_TABLES,
+      categories: INITIAL_CATEGORIES,
+      menuItems: INITIAL_MENU_ITEMS,
+      addons: INITIAL_ADDONS,
+      orders: INITIAL_ORDERS,
+      reviews: INITIAL_REVIEWS,
+      waiterRequests: INITIAL_WAITER_REQUESTS,
+    };
+  }
 }
 
-const store = global.__SNAPBITE_SERVER_STORE__;
+const store = global.__SNAPBITE_SERVER_STORE__!;
 
 export class ServerStore {
   // RESTAURANTS
@@ -75,6 +109,7 @@ export class ServerStore {
     const current = this.getRestaurant(updates.id);
     const updated = { ...current, ...updates, updated_at: new Date().toISOString() };
     store.restaurants = store.restaurants.map((r) => (r.id === updated.id ? updated : r));
+    savePersistedState();
     return updated;
   }
 
@@ -86,6 +121,7 @@ export class ServerStore {
       updated_at: new Date().toISOString(),
     };
     store.restaurants.push(newRest);
+    savePersistedState();
     return newRest;
   }
 
@@ -95,8 +131,23 @@ export class ServerStore {
     return store.tables.filter((t) => t.restaurant_id === restaurantId);
   }
 
-  static getTableByToken(token: string): Table | undefined {
-    return store.tables.find((t) => t.qr_token === token);
+  static getTableByToken(token: string, autoRegisterFallback: boolean = true): Table | undefined {
+    let match = store.tables.find((t) => t.qr_token === token);
+    if (!match && autoRegisterFallback && token && token.startsWith("tbl_tok_")) {
+      const num = store.tables.length + 1;
+      match = {
+        id: `tbl_${Date.now()}`,
+        restaurant_id: store.restaurants[0]?.id || "a0000000-0000-0000-0000-000000000001",
+        table_number: `Table ${num}`,
+        qr_token: token,
+        capacity: 4,
+        status: "available",
+        created_at: new Date().toISOString(),
+      };
+      store.tables.push(match);
+      savePersistedState();
+    }
+    return match;
   }
 
   static getTableById(id: string): Table | undefined {
@@ -112,25 +163,46 @@ export class ServerStore {
       }
       return t;
     });
+    savePersistedState();
     return updated;
   }
 
-  static addTable(restaurantId: string, tableNumber: string, capacity: number = 4): Table {
+  static addTable(tableData: Partial<Table> & { restaurant_id: string; table_number: string }): Table {
     const newTable: Table = {
-      id: `tbl_${Date.now()}`,
-      restaurant_id: restaurantId,
-      table_number: tableNumber,
-      qr_token: generateToken("tbl_tok"),
-      capacity,
-      status: "available",
-      created_at: new Date().toISOString(),
+      id: tableData.id || `tbl_${Date.now()}`,
+      restaurant_id: tableData.restaurant_id,
+      table_number: tableData.table_number,
+      qr_token: tableData.qr_token || generateToken("tbl_tok"),
+      capacity: tableData.capacity || 4,
+      status: tableData.status || "available",
+      created_at: tableData.created_at || new Date().toISOString(),
     };
-    store.tables.push(newTable);
+    const existingIndex = store.tables.findIndex(
+      (t) => t.id === newTable.id || t.qr_token === newTable.qr_token
+    );
+    if (existingIndex >= 0) {
+      store.tables[existingIndex] = { ...store.tables[existingIndex], ...newTable };
+    } else {
+      store.tables.push(newTable);
+    }
+    savePersistedState();
     return newTable;
+  }
+
+  static syncTables(incomingTables: Table[]): Table[] {
+    const map = new Map<string, Table>();
+    store.tables.forEach((t) => map.set(t.id, t));
+    incomingTables.forEach((t) => {
+      map.set(t.id, { ...(map.get(t.id) || {}), ...t });
+    });
+    store.tables = Array.from(map.values());
+    savePersistedState();
+    return store.tables;
   }
 
   static deleteTable(id: string): void {
     store.tables = store.tables.filter((t) => t.id !== id);
+    savePersistedState();
   }
 
   // CATEGORIES
@@ -158,6 +230,7 @@ export class ServerStore {
       }
       return item;
     });
+    savePersistedState();
     return updated;
   }
 
@@ -169,11 +242,13 @@ export class ServerStore {
       updated_at: new Date().toISOString(),
     };
     store.menuItems.unshift(newItem);
+    savePersistedState();
     return newItem;
   }
 
   static deleteMenuItem(id: string): void {
     store.menuItems = store.menuItems.filter((i) => i.id !== id);
+    savePersistedState();
   }
 
   // ADDONS
@@ -283,6 +358,7 @@ export class ServerStore {
       this.updateTable(table.id, { status: "occupied" });
     }
 
+    savePersistedState();
     return newOrder;
   }
 
@@ -310,6 +386,7 @@ export class ServerStore {
       }
     }
 
+    savePersistedState();
     return updated;
   }
 
@@ -327,6 +404,7 @@ export class ServerStore {
       }
       return o;
     });
+    savePersistedState();
     return updated;
   }
 
@@ -355,6 +433,7 @@ export class ServerStore {
       table,
     };
     store.waiterRequests.unshift(newReq);
+    savePersistedState();
     return newReq;
   }
 
@@ -367,6 +446,7 @@ export class ServerStore {
       }
       return r;
     });
+    savePersistedState();
     return updated;
   }
 
@@ -399,6 +479,7 @@ export class ServerStore {
       created_at: new Date().toISOString(),
     };
     store.reviews.unshift(newRev);
+    savePersistedState();
     return newRev;
   }
 
@@ -411,10 +492,12 @@ export class ServerStore {
       }
       return r;
     });
+    savePersistedState();
     return updated;
   }
 
   static deleteReview(id: string): void {
     store.reviews = store.reviews.filter((r) => r.id !== id);
+    savePersistedState();
   }
 }
