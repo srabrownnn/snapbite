@@ -1,13 +1,13 @@
--- SnapBite Demo Seed Data
--- Run this in your Supabase SQL Editor to populate sample restaurant, tables, categories, menu items, addons, orders, and reviews.
+-- SnapBite Production Seed Data
+-- Run this in your Supabase SQL Editor to populate initial restaurant, tables, categories, menu items, and addons.
 
--- 1. Create Demo Restaurant
+-- 1. Create Restaurant
 INSERT INTO restaurants (
     id, name, slug, logo_url, cover_image_url, description, address, phone, currency, tax_percentage, service_charge_percentage, opening_time, closing_time
 ) VALUES (
     'a0000000-0000-0000-0000-000000000001',
-    'SnapBite Demo Restaurant',
-    'demo-restaurant',
+    'SnapBite Gourmet Bistro',
+    'restaurant',
     'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=200&h=200&q=80',
     'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1200&h=500&q=80',
     'Artisanal stone-baked pizzas, gourmet smash burgers, handcrafted pasta & chilled craft drinks.',
@@ -25,11 +25,11 @@ INSERT INTO tables (id, restaurant_id, table_number, qr_token, capacity, status)
 VALUES
     ('b0000000-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000000001', 'Table 1', 'tbl_tok_01_snap', 2, 'available'),
     ('b0000000-0000-0000-0000-000000000002', 'a0000000-0000-0000-0000-000000000001', 'Table 2', 'tbl_tok_02_snap', 2, 'available'),
-    ('b0000000-0000-0000-0000-000000000003', 'a0000000-0000-0000-0000-000000000001', 'Table 3', 'tbl_tok_03_snap', 4, 'occupied'),
+    ('b0000000-0000-0000-0000-000000000003', 'a0000000-0000-0000-0000-000000000001', 'Table 3', 'tbl_tok_03_snap', 4, 'available'),
     ('b0000000-0000-0000-0000-000000000004', 'a0000000-0000-0000-0000-000000000001', 'Table 4', 'tbl_tok_04_snap', 4, 'available'),
-    ('b0000000-0000-0000-0000-000000000005', 'a0000000-0000-0000-0000-000000000001', 'Table 5', 'tbl_tok_05_snap', 6, 'reserved'),
+    ('b0000000-0000-0000-0000-000000000005', 'a0000000-0000-0000-0000-000000000001', 'Table 5', 'tbl_tok_05_snap', 6, 'available'),
     ('b0000000-0000-0000-0000-000000000006', 'a0000000-0000-0000-0000-000000000001', 'Table 6', 'tbl_tok_06_snap', 4, 'available'),
-    ('b0000000-0000-0000-0000-000000000007', 'a0000000-0000-0000-0000-000000000001', 'Table 7', 'tbl_tok_07_snap', 4, 'occupied'),
+    ('b0000000-0000-0000-0000-000000000007', 'a0000000-0000-0000-0000-000000000001', 'Table 7', 'tbl_tok_07_snap', 4, 'available'),
     ('b0000000-0000-0000-0000-000000000008', 'a0000000-0000-0000-0000-000000000001', 'Table 8', 'tbl_tok_08_snap', 2, 'available'),
     ('b0000000-0000-0000-0000-000000000009', 'a0000000-0000-0000-0000-000000000001', 'Table 9', 'tbl_tok_09_snap', 4, 'available'),
     ('b0000000-0000-0000-0000-000000000010', 'a0000000-0000-0000-0000-000000000001', 'Table 10', 'tbl_tok_10_snap', 6, 'available'),
@@ -151,47 +151,3 @@ INSERT INTO menu_item_addons (menu_item_id, addon_id) VALUES
     ('e0000000-0000-0000-0000-000000000005', 'd0000000-0000-0000-0000-000000000001'),
     ('e0000000-0000-0000-0000-000000000005', 'd0000000-0000-0000-0000-000000000005')
 ON CONFLICT DO NOTHING;
-
--- 7. Sample Reviews
-INSERT INTO reviews (restaurant_id, menu_item_id, rating, review_text, customer_name, is_approved) VALUES
-    ('a0000000-0000-0000-0000-000000000001', 'e0000000-0000-0000-0000-000000000001', 5, 'Best chicken burger in the city! So juicy and crispy.', 'Farhan Ahmed', true),
-    ('a0000000-0000-0000-0000-000000000001', 'e0000000-0000-0000-0000-000000000001', 5, 'Quick service, buns were super soft, melted cheese was incredible.', 'Nabila Islam', true),
-    ('a0000000-0000-0000-0000-000000000001', 'e0000000-0000-0000-0000-000000000002', 5, 'The double smash patties had the perfect crust! 10/10.', 'Tanvir Hossain', true),
-    ('a0000000-0000-0000-0000-000000000001', 'e0000000-0000-0000-0000-000000000004', 5, 'Real sourdough crust with smoky char. Reminds me of Naples.', 'Sabrina Chowdhury', true),
-    ('a0000000-0000-0000-0000-000000000001', 'e0000000-0000-0000-0000-000000000008', 4, 'Creamy, rich and warm. Great portion size.', 'Kamrul Hasan', true),
-    ('a0000000-0000-0000-0000-000000000001', 'e0000000-0000-0000-0000-000000000014', 5, 'The lava cake was hot, rich and gooey. Perfect vanilla gelato contrast.', 'Ayesha Rahman', true);
-
--- 8. Sample Orders in Various States
-INSERT INTO orders (
-    id, restaurant_id, table_id, order_number, customer_name, customer_phone, subtotal, tax, service_charge, discount, total, status, payment_status, payment_method, customer_note, estimated_prep_time, created_at
-) VALUES
-    ('f0000000-0000-0000-0000-000000000001', 'a0000000-0000-0000-0000-000000000001', 'b0000000-0000-0000-0000-000000000003',
-     '#1041', 'Tanvir Hossain', '+8801711111111', 840.00, 42.00, 21.00, 0.00, 903.00, 'pending', 'unpaid', 'cash', 'Please make the burger extra crispy', 20, now() - INTERVAL '4 minutes'),
-
-    ('f0000000-0000-0000-0000-000000000002', 'a0000000-0000-0000-0000-000000000001', 'b0000000-0000-0000-0000-000000000007',
-     '#1042', 'Rifat Karim', '+8801822222222', 1160.00, 58.00, 29.00, 0.00, 1247.00, 'accepted', 'unpaid', 'cash', 'Less spicy, no ice in cooler', 15, now() - INTERVAL '8 minutes'),
-
-    ('f0000000-0000-0000-0000-000000000003', 'a0000000-0000-0000-0000-000000000001', 'b0000000-0000-0000-0000-000000000012',
-     '#1043', 'Amina Begum', '+8801933333333', 700.00, 35.00, 17.50, 0.00, 752.50, 'preparing', 'unpaid', 'cash', 'Table 12 family dinner', 12, now() - INTERVAL '14 minutes'),
-
-    ('f0000000-0000-0000-0000-000000000004', 'a0000000-0000-0000-0000-000000000001', 'b0000000-0000-0000-0000-000000000004',
-     '#1044', 'Sadia Jahan', '+8801644444444', 920.00, 46.00, 23.00, 0.00, 989.00, 'ready', 'paid', 'bkash', 'Allergies: no peanuts', 5, now() - INTERVAL '19 minutes'),
-
-    ('f0000000-0000-0000-0000-000000000005', 'a0000000-0000-0000-0000-000000000001', 'b0000000-0000-0000-0000-000000000001',
-     '#1045', 'Mahmudul Hasan', '+8801555555555', 1340.00, 67.00, 33.50, 0.00, 1440.50, 'completed', 'paid', 'card', 'Enjoyed the meal!', 0, now() - INTERVAL '45 minutes')
-ON CONFLICT (id) DO NOTHING;
-
--- Order Items for Demo Orders
-INSERT INTO order_items (id, order_id, menu_item_id, item_name_snapshot, quantity, unit_price, subtotal, customer_note) VALUES
-    ('00000001-0000-0000-0000-000000000001', 'f0000000-0000-0000-0000-000000000001', 'e0000000-0000-0000-0000-000000000001', 'Signature Smash Chicken Burger', 2, 320.00, 640.00, 'Extra crispy chicken'),
-    ('00000001-0000-0000-0000-000000000002', 'f0000000-0000-0000-0000-000000000001', 'e0000000-0000-0000-0000-000000000011', 'Fresh Passionfruit Mint Cooler', 1, 180.00, 180.00, NULL),
-    ('00000001-0000-0000-0000-000000000003', 'f0000000-0000-0000-0000-000000000002', 'e0000000-0000-0000-0000-000000000005', 'Pepperoni Hot Honey Pizza', 1, 640.00, 640.00, 'Drizzle honey generously'),
-    ('00000001-0000-0000-0000-000000000004', 'f0000000-0000-0000-0000-000000000002', 'e0000000-0000-0000-0000-000000000004', 'Classic Margherita Napoletana', 1, 520.00, 520.00, NULL),
-    ('00000001-0000-0000-0000-000000000005', 'f0000000-0000-0000-0000-000000000003', 'e0000000-0000-0000-0000-000000000008', 'Creamy Fettuccine Alfredo', 1, 420.00, 420.00, NULL),
-    ('00000001-0000-0000-0000-000000000006', 'f0000000-0000-0000-0000-000000000003', 'e0000000-0000-0000-0000-000000000014', 'Molten Dark Chocolate Lava Cake', 1, 280.00, 280.00, NULL)
-ON CONFLICT (id) DO NOTHING;
-
--- 9. Sample Waiter Requests
-INSERT INTO waiter_requests (restaurant_id, table_id, type, status, created_at) VALUES
-    ('a0000000-0000-0000-0000-000000000001', 'b0000000-0000-0000-0000-000000000012', 'call_waiter', 'pending', now() - INTERVAL '2 minutes'),
-    ('a0000000-0000-0000-0000-000000000001', 'b0000000-0000-0000-0000-000000000003', 'request_bill', 'pending', now() - INTERVAL '5 minutes');

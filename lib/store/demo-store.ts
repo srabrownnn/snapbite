@@ -30,14 +30,14 @@ import { generateOrderNumber, generateToken } from "@/lib/utils";
 
 // Local storage keys
 const STORAGE_KEYS = {
-  RESTAURANTS: "snapbite_restaurants_v1",
-  TABLES: "snapbite_tables_v1",
-  CATEGORIES: "snapbite_categories_v1",
-  MENU_ITEMS: "snapbite_menu_items_v1",
-  ADDONS: "snapbite_addons_v1",
-  ORDERS: "snapbite_orders_v1",
-  REVIEWS: "snapbite_reviews_v1",
-  WAITER_REQUESTS: "snapbite_waiter_requests_v1",
+  RESTAURANTS: "snapbite_restaurants_v2",
+  TABLES: "snapbite_tables_v2",
+  CATEGORIES: "snapbite_categories_v2",
+  MENU_ITEMS: "snapbite_menu_items_v2",
+  ADDONS: "snapbite_addons_v2",
+  ORDERS: "snapbite_orders_v2",
+  REVIEWS: "snapbite_reviews_v2",
+  WAITER_REQUESTS: "snapbite_waiter_requests_v2",
   CURRENT_RESTAURANT_ID: "snapbite_curr_rest_id",
 };
 
@@ -640,17 +640,24 @@ export class SnapBiteStore {
     }
   }
 
-  // RESET TO DEMO DATA
-  static resetToDemoData(): void {
+  // RESET STORE DATA
+  static resetStoreData(): void {
     if (typeof window === "undefined") return;
-    window.localStorage.removeItem(STORAGE_KEYS.RESTAURANTS);
-    window.localStorage.removeItem(STORAGE_KEYS.TABLES);
-    window.localStorage.removeItem(STORAGE_KEYS.CATEGORIES);
-    window.localStorage.removeItem(STORAGE_KEYS.MENU_ITEMS);
-    window.localStorage.removeItem(STORAGE_KEYS.ADDONS);
-    window.localStorage.removeItem(STORAGE_KEYS.ORDERS);
-    window.localStorage.removeItem(STORAGE_KEYS.REVIEWS);
-    window.localStorage.removeItem(STORAGE_KEYS.WAITER_REQUESTS);
+    Object.values(STORAGE_KEYS).forEach((k) => window.localStorage.removeItem(k));
+    [
+      "snapbite_restaurants_v1",
+      "snapbite_tables_v1",
+      "snapbite_categories_v1",
+      "snapbite_menu_items_v1",
+      "snapbite_addons_v1",
+      "snapbite_orders_v1",
+      "snapbite_reviews_v1",
+      "snapbite_waiter_requests_v1",
+    ].forEach((k) => window.localStorage.removeItem(k));
     window.dispatchEvent(new CustomEvent("snapbite_store_updated", { detail: { key: "all" } }));
+  }
+
+  static resetToDemoData(): void {
+    this.resetStoreData();
   }
 }

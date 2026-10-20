@@ -11,7 +11,7 @@ function MenuCompatibilityContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
-  const restaurantSlug = (params?.restaurantSlug as string) || "demo-restaurant";
+  const restaurantSlug = (params?.restaurantSlug as string) || "restaurant";
   const tableParam = searchParams.get("table");
 
   const restaurant = SnapBiteStore.getRestaurant(restaurantSlug);

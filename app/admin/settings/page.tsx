@@ -67,9 +67,9 @@ export default function AdminSettingsPage() {
     setTimeout(() => setIsSaved(false), 2500);
   };
 
-  const handleResetDemo = () => {
-    if (confirm("Reset demo data back to factory initial state? All custom orders and changes will be restored to seed data.")) {
-      SnapBiteStore.resetToDemoData();
+  const handleResetStore = () => {
+    if (confirm("Reset store data back to clean factory state? All orders and active requests will be cleared.")) {
+      SnapBiteStore.resetStoreData();
       window.location.reload();
     }
   };
@@ -89,11 +89,11 @@ export default function AdminSettingsPage() {
           </div>
 
           <button
-            onClick={handleResetDemo}
+            onClick={handleResetStore}
             className="px-3.5 py-2 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs flex items-center gap-1.5 transition-colors self-start sm:self-auto"
           >
             <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
-            <span>Reset Demo Store</span>
+            <span>Reset Store Data</span>
           </button>
         </div>
 

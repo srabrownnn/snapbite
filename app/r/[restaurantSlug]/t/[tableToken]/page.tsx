@@ -10,7 +10,7 @@ import Link from "next/link";
 
 export default function CustomerTablePage() {
   const params = useParams();
-  const restaurantSlug = (params?.restaurantSlug as string) || "demo-restaurant";
+  const restaurantSlug = (params?.restaurantSlug as string) || "restaurant";
   const tableToken = (params?.tableToken as string) || "";
 
   // Lookup restaurant & table
@@ -38,7 +38,7 @@ export default function CustomerTablePage() {
 
           <div className="mt-6 text-left">
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
-              Available Demo Tables:
+              Available Tables:
             </h3>
             <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto no-scrollbar">
               {allTables.slice(0, 8).map((tbl) => (

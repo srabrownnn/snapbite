@@ -127,16 +127,14 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 3. Paste the contents and click **Run**.
 4. This creates all 15 relational tables, indexes, Row Level Security (RLS) policies, and registers Realtime publications.
 
-### 3. Load Seed / Demo Data
+### 3. Load Initial Production Seed Data
 1. In the SQL Editor, open [`supabase/seed.sql`](file:///d:/snapbite/supabase/seed.sql).
 2. Paste and click **Run**.
 3. This creates:
-   - Restaurant: `SnapBite Demo Restaurant` (slug: `demo-restaurant`)
-   - Tables: `Table 1` to `Table 20` with unique QR tokens
+   - Restaurant: `SnapBite Gourmet Bistro` (slug: `restaurant`)
+   - Tables: `Table 1` to `Table 20` with unique QR tokens (all available)
    - Categories: Burgers, Pizza, Pasta, Drinks, Desserts
    - 16 artisanal dishes with high-res photos, allergens, calories, and add-ons
-   - Sample orders across multiple statuses (Pending, Accepted, Preparing, Ready)
-   - Sample verified customer reviews
 
 ### 4. Configure Environment Variables
 Copy `.env.example` to `.env.local`:
@@ -207,7 +205,7 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 ## 📱 How Customers Use the System
 
 1. Scan the tabletop QR code with a phone camera.
-2. The browser opens `/r/demo-restaurant/t/[tableToken]` (Table 12).
+2. The browser opens `/r/restaurant/t/[tableToken]` (Table 12).
 3. Browse food categories (Burgers, Pizzas, Pastas, Drinks, Desserts).
 4. Tap any dish to open the bottom sheet, customize add-ons, and add instructions (*"Less spicy"*).
 5. Open the Cart, review bill calculations (Subtotal + Tax + Service Charge), select a payment method, and tap **Place Order**.

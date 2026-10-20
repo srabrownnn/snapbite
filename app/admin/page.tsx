@@ -55,17 +55,32 @@ export default function AdminDashboardPage() {
   const occupiedTables = tables.filter((t) => t.status === "occupied").length;
   const tableUtilization = tables.length > 0 ? Math.round((occupiedTables / tables.length) * 100) : 0;
 
-  // Hourly counts distribution for chart
-  const hours = [
-    { label: "12 PM", count: 4, revenue: 1680 },
-    { label: "1 PM", count: 8, revenue: 3420 },
-    { label: "2 PM", count: 6, revenue: 2540 },
-    { label: "5 PM", count: 3, revenue: 1200 },
-    { label: "7 PM", count: 12, revenue: 5490 },
-    { label: "8 PM", count: 15, revenue: 6890 },
-    { label: "9 PM", count: 9, revenue: 3800 },
-  ];
-  const maxHourlyCount = Math.max(...hours.map((h) => h.count));
+  // Hourly counts distribution computed from live orders
+  const baseHours = ["12 PM", "1 PM", "2 PM", "5 PM", "7 PM", "8 PM", "9 PM"];
+  const hourMap: { [label: string]: { count: number; revenue: number } } = {};
+  baseHours.forEach((h) => {
+    hourMap[h] = { count: 0, revenue: 0 };
+  });
+
+  validOrders.forEach((o) => {
+    const d = new Date(o.created_at);
+    let h = d.getHours();
+    const ampm = h >= 12 ? "PM" : "AM";
+    h = h % 12;
+    h = h ? h : 12;
+    const label = `${h} ${ampm}`;
+    if (hourMap[label]) {
+      hourMap[label].count += 1;
+      hourMap[label].revenue += o.total;
+    }
+  });
+
+  const hours = baseHours.map((label) => ({
+    label,
+    count: hourMap[label]?.count || 0,
+    revenue: hourMap[label]?.revenue || 0,
+  }));
+  const maxHourlyCount = Math.max(1, ...hours.map((h) => h.count));
 
   // Popular food items count from order items
   const popularItemCounts: { [name: string]: number } = {};
@@ -325,47 +340,55 @@ export default function AdminDashboardPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-medium">
-                {orders.slice(0, 6).map((order) => (
-                  <tr key={order.id} className="hover:bg-slate-50/70 transition-colors">
-                    <td className="py-3 font-bold text-orange-600">{order.order_number}</td>
-                    <td className="py-3 font-bold text-slate-900">
-                      {order.table?.table_number || "Table N/A"}
-                    </td>
-                    <td className="py-3 text-slate-700">{order.customer_name || "Guest"}</td>
-                    <td className="py-3 text-slate-400">{formatDateTime(order.created_at)}</td>
-                    <td className="py-3 font-black text-slate-900">
-                      {formatCurrency(order.total, restaurant.currency)}
-                    </td>
-                    <td className="py-3">
-                      <span
-                        className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
-                          order.status === "pending"
-                            ? "bg-amber-100 text-amber-800"
-                            : order.status === "preparing"
-                            ? "bg-orange-100 text-orange-800"
-                            : order.status === "ready"
-                            ? "bg-emerald-100 text-emerald-800"
-                            : order.status === "completed" || order.status === "served"
-                            ? "bg-purple-100 text-purple-800"
-                            : "bg-red-100 text-red-800"
-                        }`}
-                      >
-                        {order.status}
-                      </span>
-                    </td>
-                    <td className="py-3">
-                      <span
-                        className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                          order.payment_status === "paid"
-                            ? "bg-emerald-100 text-emerald-800"
-                            : "bg-slate-100 text-slate-600"
-                        }`}
-                      >
-                        {order.payment_status}
-                      </span>
+                {orders.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="py-8 text-center text-slate-400 italic">
+                      No customer orders yet. Orders placed by guests scanning tabletop QR codes will appear here in real time.
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  orders.slice(0, 6).map((order) => (
+                    <tr key={order.id} className="hover:bg-slate-50/70 transition-colors">
+                      <td className="py-3 font-bold text-orange-600">{order.order_number}</td>
+                      <td className="py-3 font-bold text-slate-900">
+                        {order.table?.table_number || "Table N/A"}
+                      </td>
+                      <td className="py-3 text-slate-700">{order.customer_name || "Guest"}</td>
+                      <td className="py-3 text-slate-400">{formatDateTime(order.created_at)}</td>
+                      <td className="py-3 font-black text-slate-900">
+                        {formatCurrency(order.total, restaurant.currency)}
+                      </td>
+                      <td className="py-3">
+                        <span
+                          className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
+                            order.status === "pending"
+                              ? "bg-amber-100 text-amber-800"
+                              : order.status === "preparing"
+                              ? "bg-orange-100 text-orange-800"
+                              : order.status === "ready"
+                              ? "bg-emerald-100 text-emerald-800"
+                              : order.status === "completed" || order.status === "served"
+                              ? "bg-purple-100 text-purple-800"
+                              : "bg-red-100 text-red-800"
+                          }`}
+                        >
+                          {order.status}
+                        </span>
+                      </td>
+                      <td className="py-3">
+                        <span
+                          className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                            order.payment_status === "paid"
+                              ? "bg-emerald-100 text-emerald-800"
+                              : "bg-slate-100 text-slate-600"
+                          }`}
+                        >
+                          {order.payment_status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>

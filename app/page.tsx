@@ -18,15 +18,15 @@ import {
 } from "lucide-react";
 
 export default function HomePage() {
-  const [demoQrUrl, setDemoQrUrl] = useState<string>("");
+  const [tableQrUrl, setTableQrUrl] = useState<string>("");
   const [origin, setOrigin] = useState<string>("");
 
   useEffect(() => {
     if (typeof window !== "undefined") {
       const currentOrigin = window.location.origin;
       setOrigin(currentOrigin);
-      const targetUrl = `${currentOrigin}/r/demo-restaurant/t/tbl_tok_12_snap`;
-      generateTableQrDataUrl(targetUrl, { width: 320 }).then(setDemoQrUrl);
+      const targetUrl = `${currentOrigin}/r/restaurant/t/tbl_tok_12_snap`;
+      generateTableQrDataUrl(targetUrl, { width: 320 }).then(setTableQrUrl);
     }
   }, []);
 
@@ -88,7 +88,7 @@ export default function HomePage() {
             {/* Quick Portals CTA */}
             <div className="pt-2 flex flex-wrap items-center justify-center lg:justify-start gap-3">
               <Link
-                href="/r/demo-restaurant/t/tbl_tok_12_snap"
+                href="/r/restaurant/t/tbl_tok_12_snap"
                 className="px-6 py-3.5 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white font-extrabold text-sm rounded-2xl shadow-xl shadow-orange-600/25 flex items-center gap-2 transition-all active:scale-95"
               >
                 <Smartphone className="w-4 h-4" />
@@ -159,9 +159,9 @@ export default function HomePage() {
 
               {/* QR Image */}
               <div className="p-3 bg-white border-2 border-dashed border-slate-300 rounded-2xl inline-block mb-4 shadow-inner">
-                {demoQrUrl ? (
+                {tableQrUrl ? (
                   <img
-                    src={demoQrUrl}
+                    src={tableQrUrl}
                     alt="Scan with phone"
                     className="w-48 h-48 mx-auto rounded-lg"
                   />
@@ -183,7 +183,7 @@ export default function HomePage() {
               </div>
 
               <Link
-                href="/r/demo-restaurant/t/tbl_tok_12_snap"
+                href="/r/restaurant/t/tbl_tok_12_snap"
                 className="mt-4 block w-full py-2.5 bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs rounded-xl shadow-md transition-all active:scale-95"
               >
                 Open Table 12 Menu Directly →
