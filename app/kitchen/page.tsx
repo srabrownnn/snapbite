@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import { Order, OrderStatus } from "@/types/database";
 import { SnapBiteStore } from "@/lib/store/demo-store";
 import { formatTime, getMinutesAgo } from "@/lib/utils";
@@ -22,6 +23,7 @@ import {
   UtensilsCrossed,
   Filter,
   Printer,
+  Loader2,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -33,8 +35,10 @@ const COLUMNS: { status: OrderStatus; title: string; color: string; badgeColor: 
   { status: "served", title: "SERVED", color: "border-purple-400 bg-purple-50/40", badgeColor: "bg-purple-600 text-white" },
 ];
 
-export default function KitchenDashboardPage() {
-  const restaurant = SnapBiteStore.getRestaurant();
+function KitchenDashboardInner() {
+  const searchParams = useSearchParams();
+  const restParam = searchParams.get("restaurant") || searchParams.get("slug") || searchParams.get("restaurantId") || undefined;
+  const restaurant = SnapBiteStore.getRestaurant(restParam);
   const [orders, setOrders] = useState<Order[]>([]);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [autoPrintEnabled, setAutoPrintEnabled] = useState(false);
@@ -500,5 +504,20 @@ export default function KitchenDashboardPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function KitchenDashboardPage() {
+  return (
+    <React.Suspense
+      fallback={
+        <div className="min-h-screen bg-slate-950 flex items-center justify-center text-slate-400 font-bold gap-3">
+          <Loader2 className="w-8 h-8 text-orange-500 animate-spin" />
+          <span>Loading Kitchen Display...</span>
+        </div>
+      }
+    >
+      <KitchenDashboardInner />
+    </React.Suspense>
   );
 }

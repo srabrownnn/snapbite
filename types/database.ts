@@ -52,6 +52,23 @@ export interface Restaurant {
   updated_at: string;
 }
 
+export interface User {
+  id: string;
+  email: string;
+  password?: string;
+  full_name: string;
+  phone?: string | null;
+  restaurant_id: string;
+  role: 'owner' | 'manager' | 'staff' | 'kitchen';
+  created_at: string;
+}
+
+export interface AuthSession {
+  user: User;
+  restaurant: Restaurant;
+  token: string;
+}
+
 export interface RestaurantUser {
   id: string;
   restaurant_id: string;

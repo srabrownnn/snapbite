@@ -1,4 +1,17 @@
-import { Restaurant, Table, Category, MenuItem, AddOn, Order, Review, WaiterRequest } from "@/types/database";
+import { Restaurant, Table, Category, MenuItem, AddOn, Order, Review, WaiterRequest, User } from "@/types/database";
+
+export const INITIAL_USERS: User[] = [
+  {
+    id: "usr_00000000-0000-0000-0000-000000000001",
+    email: "owner@snapbite.com",
+    password: "admin",
+    full_name: "Demo Owner",
+    phone: "+880 1712 345678",
+    restaurant_id: "a0000000-0000-0000-0000-000000000001",
+    role: "owner",
+    created_at: new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString(),
+  },
+];
 
 export const INITIAL_RESTAURANT: Restaurant = {
   id: "a0000000-0000-0000-0000-000000000001",

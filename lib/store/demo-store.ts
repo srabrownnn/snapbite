@@ -15,6 +15,8 @@ import {
   WaiterRequestType,
   OrderItem,
   CartItem,
+  User,
+  AuthSession,
 } from "@/types/database";
 import {
   INITIAL_RESTAURANT,
@@ -25,6 +27,7 @@ import {
   INITIAL_ORDERS,
   INITIAL_REVIEWS,
   INITIAL_WAITER_REQUESTS,
+  INITIAL_USERS,
 } from "./demo-data";
 import { generateOrderNumber, generateToken } from "@/lib/utils";
 
@@ -39,6 +42,8 @@ const STORAGE_KEYS = {
   REVIEWS: "snapbite_reviews_v2",
   WAITER_REQUESTS: "snapbite_waiter_requests_v2",
   CURRENT_RESTAURANT_ID: "snapbite_curr_rest_id",
+  USERS: "snapbite_users_v2",
+  AUTH_SESSION: "snapbite_auth_session",
 };
 
 function getStorage<T>(key: string, fallback: T): T {
@@ -62,12 +67,56 @@ function setStorage<T>(key: string, value: T): void {
 }
 
 export class SnapBiteStore {
+  // AUTH & MULTI-TENANT SESSION
+  static getCurrentRestaurantId(): string | null {
+    if (typeof window === "undefined") return null;
+    return window.localStorage.getItem(STORAGE_KEYS.CURRENT_RESTAURANT_ID);
+  }
+
+  static setCurrentRestaurantId(id: string): void {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(STORAGE_KEYS.CURRENT_RESTAURANT_ID, id);
+    window.dispatchEvent(new CustomEvent("snapbite_store_updated", { detail: { key: STORAGE_KEYS.CURRENT_RESTAURANT_ID } }));
+  }
+
+  static getAuthSession(): AuthSession | null {
+    return getStorage<AuthSession | null>(STORAGE_KEYS.AUTH_SESSION, null);
+  }
+
+  static setAuthSession(session: AuthSession): void {
+    setStorage(STORAGE_KEYS.AUTH_SESSION, session);
+    this.setCurrentRestaurantId(session.restaurant.id);
+  }
+
+  static clearAuthSession(): void {
+    if (typeof window === "undefined") return;
+    window.localStorage.removeItem(STORAGE_KEYS.AUTH_SESSION);
+    window.localStorage.removeItem(STORAGE_KEYS.CURRENT_RESTAURANT_ID);
+    window.dispatchEvent(new CustomEvent("snapbite_store_updated", { detail: { key: STORAGE_KEYS.AUTH_SESSION } }));
+  }
+
+  static getUsers(): User[] {
+    return getStorage<User[]>(STORAGE_KEYS.USERS, INITIAL_USERS);
+  }
+
+  static saveUser(user: User): void {
+    const users = this.getUsers().filter(u => u.id !== user.id && u.email !== user.email);
+    setStorage(STORAGE_KEYS.USERS, [user, ...users]);
+  }
+
   // RESTAURANTS
   static getRestaurant(slugOrId?: string): Restaurant {
     const restaurants = getStorage<Restaurant[]>(STORAGE_KEYS.RESTAURANTS, [INITIAL_RESTAURANT]);
-    if (!slugOrId) return restaurants[0] || INITIAL_RESTAURANT;
-    const match = restaurants.find(r => r.slug === slugOrId || r.id === slugOrId);
-    return match || restaurants[0] || INITIAL_RESTAURANT;
+    let target = slugOrId;
+    if (!target) {
+      const session = this.getAuthSession();
+      target = session?.restaurant?.id || this.getCurrentRestaurantId() || undefined;
+    }
+    if (target) {
+      const match = restaurants.find(r => r.slug === target || r.id === target);
+      if (match) return match;
+    }
+    return restaurants[0] || INITIAL_RESTAURANT;
   }
 
   static getAllRestaurants(): Restaurant[] {

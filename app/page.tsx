@@ -47,18 +47,24 @@ export default function HomePage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
             <Link
               href="/kitchen"
               className="text-xs font-bold text-slate-300 hover:text-white px-3 py-2 rounded-xl hover:bg-slate-900 transition-colors hidden sm:inline-flex"
             >
-              Kitchen Display
+              Kitchen KDS
             </Link>
             <Link
-              href="/admin"
-              className="px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-orange-600/20 transition-all active:scale-95"
+              href="/login"
+              className="text-xs font-bold text-slate-300 hover:text-white px-3.5 py-2 rounded-xl border border-slate-800 hover:bg-slate-900 transition-colors"
             >
-              Staff Dashboard
+              Owner Sign In
+            </Link>
+            <Link
+              href="/signup"
+              className="px-4 py-2 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white font-extrabold text-xs rounded-xl shadow-lg shadow-orange-600/20 transition-all active:scale-95"
+            >
+              Register Restaurant
             </Link>
           </div>
         </div>
@@ -88,12 +94,20 @@ export default function HomePage() {
             {/* Quick Portals CTA */}
             <div className="pt-2 flex flex-wrap items-center justify-center lg:justify-start gap-3">
               <Link
-                href="/r/restaurant/t/tbl_tok_12_snap"
+                href="/signup"
                 className="px-6 py-3.5 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white font-extrabold text-sm rounded-2xl shadow-xl shadow-orange-600/25 flex items-center gap-2 transition-all active:scale-95"
               >
-                <Smartphone className="w-4 h-4" />
-                <span>Customer Mobile Menu (Table 12)</span>
+                <Sparkles className="w-4 h-4 fill-white" />
+                <span>Register Your Restaurant</span>
                 <ArrowRight className="w-4 h-4" />
+              </Link>
+
+              <Link
+                href="/r/restaurant/t/tbl_tok_12_snap"
+                className="px-5 py-3.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm rounded-2xl border border-slate-800 flex items-center gap-2 transition-all"
+              >
+                <Smartphone className="w-4 h-4 text-orange-400" />
+                <span>Demo Diner (Table 12)</span>
               </Link>
 
               <Link
@@ -105,11 +119,11 @@ export default function HomePage() {
               </Link>
 
               <Link
-                href="/admin"
+                href="/login"
                 className="px-5 py-3.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm rounded-2xl border border-slate-800 flex items-center gap-2 transition-all"
               >
                 <LayoutDashboard className="w-4 h-4 text-orange-400" />
-                <span>Admin Dashboard</span>
+                <span>Owner Login</span>
               </Link>
             </div>
 

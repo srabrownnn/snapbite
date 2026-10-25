@@ -32,6 +32,16 @@ export default function CustomerTablePage() {
     let isMounted = true;
 
     async function resolveTable() {
+      // Sync restaurant details from server
+      fetch(`/api/restaurant?slug=${encodeURIComponent(restaurantSlug)}`, { cache: "no-store" })
+        .then((r) => r.json())
+        .then((d) => {
+          if (d.restaurant) {
+            SnapBiteStore.updateRestaurant(d.restaurant);
+          }
+        })
+        .catch(() => {});
+
       // If table is already found locally, sync fresh tables in background
       if (table) {
         SnapBiteStore.syncTablesWithServer(restaurant.id).then((fresh) => {

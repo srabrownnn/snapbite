@@ -19,6 +19,7 @@ import {
   WaiterRequestType,
   OrderItem,
   CartItem,
+  User,
 } from "@/types/database";
 import {
   INITIAL_RESTAURANT,
@@ -29,6 +30,7 @@ import {
   INITIAL_ORDERS,
   INITIAL_REVIEWS,
   INITIAL_WAITER_REQUESTS,
+  INITIAL_USERS,
 } from "./store/demo-data";
 import { generateOrderNumber, generateToken } from "./utils";
 
@@ -70,12 +72,14 @@ declare global {
     orders: Order[];
     reviews: Review[];
     waiterRequests: WaiterRequest[];
+    users: User[];
   } | undefined;
 }
 
 if (!global.__SNAPBITE_SERVER_STORE__) {
   const persisted = loadPersistedState();
   if (persisted && Array.isArray(persisted.tables) && persisted.tables.length > 0) {
+    if (!persisted.users) persisted.users = INITIAL_USERS;
     global.__SNAPBITE_SERVER_STORE__ = persisted;
   } else {
     global.__SNAPBITE_SERVER_STORE__ = {
@@ -87,6 +91,7 @@ if (!global.__SNAPBITE_SERVER_STORE__) {
       orders: INITIAL_ORDERS,
       reviews: INITIAL_REVIEWS,
       waiterRequests: INITIAL_WAITER_REQUESTS,
+      users: INITIAL_USERS,
     };
   }
 }
@@ -503,5 +508,177 @@ export class ServerStore {
   static deleteReview(id: string): void {
     store.reviews = store.reviews.filter((r) => r.id !== id);
     savePersistedState();
+  }
+
+  // USERS & AUTH
+  static getUsers(): User[] {
+    if (!store.users) store.users = [...INITIAL_USERS];
+    return store.users;
+  }
+
+  static getUserByEmail(email: string): User | undefined {
+    return this.getUsers().find((u) => u.email.toLowerCase() === email.toLowerCase().trim());
+  }
+
+  static getUserById(id: string): User | undefined {
+    return this.getUsers().find((u) => u.id === id);
+  }
+
+  static createUser(userData: Omit<User, "id" | "created_at">): User {
+    const newUser: User = {
+      ...userData,
+      id: `usr_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      email: userData.email.toLowerCase().trim(),
+      created_at: new Date().toISOString(),
+    };
+    if (!store.users) store.users = [];
+    store.users.push(newUser);
+    savePersistedState();
+    return newUser;
+  }
+
+  static createRestaurantWithOwner(params: {
+    fullName: string;
+    email: string;
+    password?: string;
+    restaurantName: string;
+    phone?: string;
+    slug?: string;
+  }): { user: User; restaurant: Restaurant } {
+    const cleanEmail = params.email.toLowerCase().trim();
+    const existing = this.getUserByEmail(cleanEmail);
+    if (existing) {
+      throw new Error("An account with this email address already exists.");
+    }
+
+    let baseSlug = (params.slug || params.restaurantName)
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+    if (!baseSlug) baseSlug = `restaurant-${Date.now()}`;
+
+    let finalSlug = baseSlug;
+    let counter = 1;
+    while (store.restaurants.some((r) => r.slug === finalSlug)) {
+      finalSlug = `${baseSlug}-${counter}`;
+      counter++;
+    }
+
+    const restId = `rest_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+    const newRestaurant: Restaurant = {
+      id: restId,
+      name: params.restaurantName.trim(),
+      slug: finalSlug,
+      logo_url: null,
+      cover_image_url: null,
+      description: `Welcome to ${params.restaurantName.trim()}! Scan QR code at your table to order.`,
+      address: null,
+      phone: params.phone?.trim() || null,
+      currency: "৳",
+      tax_percentage: 5,
+      service_charge_percentage: 0,
+      opening_time: "10:00 AM",
+      closing_time: "11:00 PM",
+      is_active: true,
+      bkash_number: params.phone?.trim() || "01712345678",
+      bkash_type: "merchant",
+      bkash_instructions: "Make payment to our bKash number with your table number as reference.",
+      bkash_enabled: true,
+      bkash_mode: "sandbox",
+      bkash_pgw_enabled: true,
+      cash_enabled: true,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    store.restaurants.push(newRestaurant);
+
+    const newUser = this.createUser({
+      email: cleanEmail,
+      password: params.password || "admin",
+      full_name: params.fullName.trim(),
+      phone: params.phone?.trim() || null,
+      restaurant_id: restId,
+      role: "owner",
+    });
+
+    // Initialize 5 starter tables for this new restaurant
+    for (let i = 1; i <= 5; i++) {
+      const pad = i.toString().padStart(2, "0");
+      store.tables.push({
+        id: `tbl_${restId}_${pad}`,
+        restaurant_id: restId,
+        table_number: `Table ${i}`,
+        qr_token: `tbl_tok_${finalSlug}_${pad}`,
+        capacity: i % 2 === 0 ? 4 : 2,
+        status: "available",
+        created_at: new Date().toISOString(),
+      });
+    }
+
+    // Initialize starter categories
+    const catMainsId = `cat_${restId}_mains`;
+    const catBeveragesId = `cat_${restId}_drinks`;
+    store.categories.push(
+      {
+        id: catMainsId,
+        restaurant_id: restId,
+        name: "Main Dishes",
+        description: "Chef's signature main courses",
+        image_url: "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=400&q=80",
+        display_order: 1,
+        is_active: true,
+        created_at: new Date().toISOString(),
+      },
+      {
+        id: catBeveragesId,
+        restaurant_id: restId,
+        name: "Beverages",
+        description: "Refreshing drinks and coolers",
+        image_url: "https://images.unsplash.com/photo-1551024709-8f23befc6f87?auto=format&fit=crop&w=400&q=80",
+        display_order: 2,
+        is_active: true,
+        created_at: new Date().toISOString(),
+      }
+    );
+
+    // Initialize starter menu items
+    store.menuItems.push(
+      {
+        id: `item_${restId}_1`,
+        restaurant_id: restId,
+        category_id: catMainsId,
+        name: "House Special Platter",
+        description: "Chef's special savory dish served with house sauce and fresh sides",
+        price: 350,
+        image_url: "https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=400&q=80",
+        preparation_time: 15,
+        calories: 520,
+        is_available: true,
+        is_featured: true,
+        display_order: 1,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+      {
+        id: `item_${restId}_2`,
+        restaurant_id: restId,
+        category_id: catBeveragesId,
+        name: "Fresh Mint Lemonade",
+        description: "Chilled fresh lemon juice infused with crushed garden mint",
+        price: 90,
+        image_url: "https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?auto=format&fit=crop&w=400&q=80",
+        preparation_time: 5,
+        calories: 120,
+        is_available: true,
+        is_featured: false,
+        display_order: 2,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }
+    );
+
+    savePersistedState();
+    return { user: newUser, restaurant: newRestaurant };
   }
 }
