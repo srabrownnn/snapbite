@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from "react";
-import { Restaurant, Table, MenuItem, AddOn, Order, WaiterRequestType } from "@/types/database";
+import { Restaurant, Table, MenuItem, AddOn, Order, WaiterRequestType, PaymentMethod } from "@/types/database";
 import { SnapBiteStore } from "@/lib/store/demo-store";
 import { CustomerHeader } from "@/components/customer/customer-header";
 import { RestaurantHero } from "@/components/customer/restaurant-hero";
@@ -165,7 +165,9 @@ export function CustomerMenuView({ initialRestaurant, table }: CustomerMenuViewP
     customerName: string;
     customerPhone: string;
     customerNote: string;
-    paymentMethod: any;
+    paymentMethod: PaymentMethod;
+    bkashTrxId?: string;
+    bkashSenderNumber?: string;
   }) => {
     setIsSubmittingOrder(true);
     try {
@@ -176,6 +178,8 @@ export function CustomerMenuView({ initialRestaurant, table }: CustomerMenuViewP
         customerPhone: params.customerPhone,
         customerNote: params.customerNote,
         paymentMethod: params.paymentMethod,
+        bkashTrxId: params.bkashTrxId,
+        bkashSenderNumber: params.bkashSenderNumber,
         cartItems,
       });
 

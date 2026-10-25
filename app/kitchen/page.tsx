@@ -348,6 +348,27 @@ export default function KitchenDashboardPage() {
                                     Guest: {order.customer_name}
                                   </div>
                                 )}
+                                <div className="flex items-center gap-1.5 mt-1">
+                                  {order.payment_method === "bkash" ? (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-black bg-[#E2136E]/20 text-pink-400 border border-[#E2136E]/40 font-mono">
+                                      <span>bKash</span>
+                                      {order.bkash_trx_id && <span>• Trx: {order.bkash_trx_id}</span>}
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-800 text-slate-300 border border-slate-700">
+                                      Cash / In-Person
+                                    </span>
+                                  )}
+                                  <span
+                                    className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded ${
+                                      order.payment_status === "paid"
+                                        ? "bg-emerald-500/20 text-emerald-400"
+                                        : "bg-amber-500/20 text-amber-400"
+                                    }`}
+                                  >
+                                    {order.payment_status}
+                                  </span>
+                                </div>
                               </div>
 
                               {/* Ticket Header Actions: Print Receipt & Urgency Timer */}

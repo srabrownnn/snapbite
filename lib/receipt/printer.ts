@@ -194,9 +194,25 @@ export function printThermalReceipt(order: Order, restaurant: Restaurant): void 
           <tr>
             <td style="padding-top: 6px; font-size: 11px;">Payment Method:</td>
             <td style="padding-top: 6px; text-align: right; font-weight: bold; font-size: 11px; text-transform: uppercase;">
-              ${order.payment_method} (${order.payment_status})
+              ${order.payment_method === "bkash" ? "bKash" : order.payment_method} (${order.payment_status})
             </td>
           </tr>
+          ${
+            order.bkash_trx_id
+              ? `<tr>
+                  <td style="font-size: 10px; font-weight: bold;">bKash TrxID:</td>
+                  <td style="text-align: right; font-family: monospace; font-size: 11px; font-weight: bold;">${order.bkash_trx_id}</td>
+                </tr>`
+              : ""
+          }
+          ${
+            order.bkash_sender_number
+              ? `<tr>
+                  <td style="font-size: 10px;">Sender Number:</td>
+                  <td style="text-align: right; font-family: monospace; font-size: 10px;">${order.bkash_sender_number}</td>
+                </tr>`
+              : ""
+          }
         </table>
 
         <div class="footer">

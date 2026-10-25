@@ -15,6 +15,11 @@ export const INITIAL_RESTAURANT: Restaurant = {
   opening_time: "11:00 AM",
   closing_time: "11:30 PM",
   is_active: true,
+  bkash_number: "01712345678",
+  bkash_type: "merchant",
+  bkash_instructions: "Make Payment or Send Money to our bKash number with your table number as reference.",
+  bkash_enabled: true,
+  cash_enabled: true,
   created_at: new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString(),
   updated_at: new Date().toISOString(),
 };

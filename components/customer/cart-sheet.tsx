@@ -4,7 +4,23 @@ import React, { useState } from "react";
 import { Restaurant, Table, PaymentMethod } from "@/types/database";
 import { useCart } from "@/lib/store/cart-context";
 import { formatCurrency } from "@/lib/utils";
-import { X, Trash2, Plus, Minus, ArrowLeft, Send, Sparkles, CreditCard, Wallet, Store } from "lucide-react";
+import {
+  X,
+  Trash2,
+  Plus,
+  Minus,
+  ArrowLeft,
+  Send,
+  Sparkles,
+  CreditCard,
+  Wallet,
+  Store,
+  Copy,
+  Check,
+  Info,
+  AlertCircle,
+  Smartphone,
+} from "lucide-react";
 
 interface CartSheetProps {
   restaurant: Restaurant;
@@ -16,6 +32,8 @@ interface CartSheetProps {
     customerPhone: string;
     customerNote: string;
     paymentMethod: PaymentMethod;
+    bkashTrxId?: string;
+    bkashSenderNumber?: string;
   }) => void;
   isSubmitting?: boolean;
 }
@@ -42,7 +60,13 @@ export function CartSheet({
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [orderNote, setOrderNote] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("cash");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(
+    restaurant.cash_enabled !== false ? "cash" : "bkash"
+  );
+  const [bkashTrxId, setBkashTrxId] = useState("");
+  const [bkashSenderNumber, setBkashSenderNumber] = useState("");
+  const [isCopiedBkash, setIsCopiedBkash] = useState(false);
+  const [paymentError, setPaymentError] = useState("");
 
   if (!isOpen) return null;
 
@@ -50,13 +74,33 @@ export function CartSheet({
   const serviceCharge = serviceChargeAmount(restaurant.service_charge_percentage);
   const total = totalWithTaxes(restaurant.tax_percentage, restaurant.service_charge_percentage);
 
+  const handleCopyBkash = () => {
+    const num = restaurant.bkash_number || "01712345678";
+    if (typeof navigator !== "undefined" && navigator.clipboard) {
+      navigator.clipboard.writeText(num);
+      setIsCopiedBkash(true);
+      setTimeout(() => setIsCopiedBkash(false), 2000);
+    }
+  };
+
   const handlePlaceOrder = () => {
     if (items.length === 0) return;
+
+    if (paymentMethod === "bkash") {
+      if (!bkashTrxId.trim()) {
+        setPaymentError("Please enter your bKash Transaction ID (TrxID) to confirm your payment.");
+        return;
+      }
+    }
+    setPaymentError("");
+
     onSubmitOrder({
       customerName: customerName.trim() || "Table Guest",
       customerPhone: customerPhone.trim(),
       customerNote: orderNote.trim(),
       paymentMethod,
+      bkashTrxId: paymentMethod === "bkash" ? bkashTrxId.trim().toUpperCase() : undefined,
+      bkashSenderNumber: paymentMethod === "bkash" ? bkashSenderNumber.trim() : undefined,
     });
   };
 
@@ -225,51 +269,182 @@ export function CartSheet({
               </div>
 
               {/* Payment Method Selector */}
-              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200">
-                <h4 className="font-bold text-xs uppercase tracking-wider text-slate-500 mb-2">
-                  Payment Method
+              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
+                <h4 className="font-bold text-xs uppercase tracking-wider text-slate-500">
+                  Payment Option
                 </h4>
 
-                <div className="grid grid-cols-3 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod("cash")}
-                    className={`p-2.5 rounded-xl border text-center transition-all flex flex-col items-center gap-1 ${
-                      paymentMethod === "cash"
-                        ? "border-orange-500 bg-orange-50/70 text-orange-950 font-bold"
-                        : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
-                    }`}
-                  >
-                    <Store className="w-4 h-4 text-orange-600" />
-                    <span className="text-[11px] leading-tight">Pay at Counter</span>
-                  </button>
+                <div className="grid grid-cols-2 gap-2">
+                  {/* Cash / In-Person Button */}
+                  {restaurant.cash_enabled !== false && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPaymentMethod("cash");
+                        setPaymentError("");
+                      }}
+                      className={`p-3 rounded-xl border text-center transition-all flex flex-col items-center justify-center gap-1.5 ${
+                        paymentMethod === "cash"
+                          ? "border-orange-500 bg-orange-50/80 text-orange-950 font-bold shadow-sm"
+                          : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                      }`}
+                    >
+                      <Store className="w-4 h-4 text-orange-600" />
+                      <div className="text-left">
+                        <div className="text-xs font-bold leading-tight">In-Person (Cash)</div>
+                        <div className="text-[10px] text-slate-500">Pay at Counter / Waiter</div>
+                      </div>
+                    </button>
+                  )}
 
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod("card")}
-                    className={`p-2.5 rounded-xl border text-center transition-all flex flex-col items-center gap-1 ${
-                      paymentMethod === "card"
-                        ? "border-orange-500 bg-orange-50/70 text-orange-950 font-bold"
-                        : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
-                    }`}
-                  >
-                    <Wallet className="w-4 h-4 text-orange-600" />
-                    <span className="text-[11px] leading-tight">Pay at Table</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod("online")}
-                    className={`p-2.5 rounded-xl border text-center transition-all flex flex-col items-center gap-1 ${
-                      paymentMethod === "online"
-                        ? "border-orange-500 bg-orange-50/70 text-orange-950 font-bold"
-                        : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
-                    }`}
-                  >
-                    <CreditCard className="w-4 h-4 text-orange-600" />
-                    <span className="text-[11px] leading-tight">bKash / Card</span>
-                  </button>
+                  {/* bKash Button */}
+                  {restaurant.bkash_enabled !== false && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPaymentMethod("bkash");
+                        setPaymentError("");
+                      }}
+                      className={`p-3 rounded-xl border text-center transition-all flex flex-col items-center justify-center gap-1.5 ${
+                        paymentMethod === "bkash"
+                          ? "border-[#E2136E] bg-pink-50 text-pink-950 font-bold shadow-sm ring-1 ring-[#E2136E]/30"
+                          : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                      }`}
+                    >
+                      <div className="w-5 h-5 rounded-full bg-[#E2136E] text-white flex items-center justify-center text-[10px] font-black">
+                        ৳
+                      </div>
+                      <div className="text-left">
+                        <div className="text-xs font-bold leading-tight text-pink-700">bKash Online</div>
+                        <div className="text-[10px] text-slate-500">Instant Mobile Payment</div>
+                      </div>
+                    </button>
+                  )}
                 </div>
+
+                {/* bKash Details & TrxID Input Card */}
+                {paymentMethod === "bkash" && (
+                  <div className="p-3.5 rounded-xl bg-pink-50/70 border border-pink-200 space-y-3 animate-fadeIn">
+                    {/* bKash Header & Copy Number */}
+                    <div className="bg-white p-3 rounded-xl border border-pink-200 flex items-center justify-between gap-3 shadow-sm">
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                            Send bKash to:
+                          </span>
+                          <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase bg-pink-100 text-[#E2136E]">
+                            {restaurant.bkash_type === "personal" ? "Personal (Send Money)" : "Merchant (Payment)"}
+                          </span>
+                        </div>
+                        <div className="font-mono text-base font-black text-slate-900 mt-0.5 tracking-wide">
+                          {restaurant.bkash_number || "01712345678"}
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={handleCopyBkash}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 transition-all ${
+                          isCopiedBkash
+                            ? "bg-emerald-600 text-white"
+                            : "bg-[#E2136E] text-white hover:bg-pink-700 active:scale-95 shadow-sm"
+                        }`}
+                      >
+                        {isCopiedBkash ? (
+                          <>
+                            <Check className="w-3.5 h-3.5 stroke-[3]" />
+                            <span>Copied!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3.5 h-3.5" />
+                            <span>Copy</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    {/* Step-by-step Instructions */}
+                    <div className="text-[11px] text-slate-600 space-y-1 bg-white/70 p-2.5 rounded-lg border border-pink-100">
+                      <div className="font-bold text-slate-800 flex items-center gap-1 text-[11px]">
+                        <Info className="w-3 h-3 text-[#E2136E]" />
+                        <span>How to Pay:</span>
+                      </div>
+                      <ol className="list-decimal list-inside space-y-0.5 pl-1 text-[11px] text-slate-700">
+                        <li>
+                          Open bKash App & tap{" "}
+                          <strong>
+                            {restaurant.bkash_type === "personal" ? "Send Money" : "Make Payment"}
+                          </strong>
+                        </li>
+                        <li>
+                          Enter Number: <strong>{restaurant.bkash_number || "01712345678"}</strong>
+                        </li>
+                        <li>
+                          Enter Amount: <strong>{formatCurrency(total, restaurant.currency)}</strong>
+                        </li>
+                        <li>
+                          Enter Reference: <strong>{table.table_number}</strong>
+                        </li>
+                        <li>Confirm with PIN & copy your 8-10 digit <strong>TrxID</strong></li>
+                      </ol>
+                    </div>
+
+                    {/* TrxID & Sender Inputs */}
+                    <div className="space-y-2 pt-1">
+                      <div>
+                        <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                          bKash Transaction ID (TrxID) <span className="text-pink-600">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={bkashTrxId}
+                          onChange={(e) => {
+                            setBkashTrxId(e.target.value.toUpperCase());
+                            setPaymentError("");
+                          }}
+                          placeholder="e.g. 9K82JD810X"
+                          className={`w-full px-3 py-2 bg-white border rounded-xl text-xs font-mono font-bold tracking-wider uppercase outline-none transition-all ${
+                            paymentError
+                              ? "border-red-400 ring-2 ring-red-400/20"
+                              : "border-pink-300 focus:ring-2 focus:ring-pink-500/30 focus:border-pink-500"
+                          }`}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[11px] font-semibold text-slate-600 block mb-1">
+                          Your bKash Sender Number (Optional)
+                        </label>
+                        <input
+                          type="tel"
+                          value={bkashSenderNumber}
+                          onChange={(e) => setBkashSenderNumber(e.target.value)}
+                          placeholder="e.g. 01XXXXXXXXX"
+                          className="w-full px-3 py-1.5 bg-white border border-pink-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-pink-500/30"
+                        />
+                      </div>
+
+                      {paymentError && (
+                        <div className="p-2 rounded-lg bg-red-50 border border-red-200 flex items-center gap-1.5 text-red-700 text-[11px] font-semibold">
+                          <AlertCircle className="w-3.5 h-3.5 shrink-0 text-red-500" />
+                          <span>{paymentError}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Cash Notice */}
+                {paymentMethod === "cash" && (
+                  <div className="p-2.5 rounded-xl bg-orange-50/60 border border-orange-200 text-[11px] text-orange-900 flex items-center gap-2">
+                    <Store className="w-4 h-4 text-orange-600 shrink-0" />
+                    <span>
+                      Pay in cash or card directly to the server or cashier whenever you are ready.
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* Bill Breakdown */}

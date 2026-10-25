@@ -19,6 +19,9 @@ import {
   Phone,
   MessageSquare,
   Printer,
+  Copy,
+  Check,
+  Smartphone,
 } from "lucide-react";
 
 const FILTER_TABS: { label: string; value: string }[] = [
@@ -36,6 +39,15 @@ export default function AdminOrdersPage() {
   const [selectedFilter, setSelectedFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [copiedTrxId, setCopiedTrxId] = useState(false);
+
+  const handleCopyTrx = (trxId: string) => {
+    if (typeof navigator !== "undefined" && navigator.clipboard) {
+      navigator.clipboard.writeText(trxId);
+      setCopiedTrxId(true);
+      setTimeout(() => setCopiedTrxId(false), 2000);
+    }
+  };
 
   const restaurant = SnapBiteStore.getRestaurant();
 
@@ -219,15 +231,33 @@ export default function AdminOrdersPage() {
                         </span>
                       </td>
                       <td className="p-4">
-                        <span
-                          className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase ${
-                            order.payment_status === "paid"
-                              ? "bg-emerald-100 text-emerald-800"
-                              : "bg-slate-100 text-slate-600"
-                          }`}
-                        >
-                          {order.payment_status}
-                        </span>
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-1.5">
+                            {order.payment_method === "bkash" ? (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-[#E2136E] text-white">
+                                bKash
+                              </span>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-200 text-slate-700">
+                                Cash
+                              </span>
+                            )}
+                            <span
+                              className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
+                                order.payment_status === "paid"
+                                  ? "bg-emerald-100 text-emerald-800"
+                                  : "bg-amber-100 text-amber-800"
+                              }`}
+                            >
+                              {order.payment_status}
+                            </span>
+                          </div>
+                          {order.bkash_trx_id && (
+                            <div className="text-[10px] font-mono text-slate-500 font-semibold truncate max-w-[130px]">
+                              Trx: {order.bkash_trx_id}
+                            </div>
+                          )}
+                        </div>
                       </td>
                       <td className="p-4 text-right">
                         <div className="flex items-center justify-end gap-1.5">
@@ -368,6 +398,94 @@ export default function AdminOrdersPage() {
                     </span>
                   </div>
                 </div>
+
+                {/* bKash Payment Details Box */}
+                {selectedOrder.payment_method === "bkash" && (
+                  <div className="p-3.5 rounded-2xl bg-pink-50 border border-pink-200 space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="w-6 h-6 rounded-md bg-[#E2136E] text-white flex items-center justify-center font-black text-xs">
+                          ৳
+                        </span>
+                        <div>
+                          <h4 className="text-xs font-black text-pink-900">bKash Mobile Payment</h4>
+                          <p className="text-[10px] text-pink-700">Digital Transaction Verification</p>
+                        </div>
+                      </div>
+                      <span
+                        className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${
+                          selectedOrder.payment_status === "paid"
+                            ? "bg-emerald-600 text-white"
+                            : "bg-amber-500 text-white"
+                        }`}
+                      >
+                        {selectedOrder.payment_status}
+                      </span>
+                    </div>
+
+                    <div className="bg-white p-2.5 rounded-xl border border-pink-200/80 space-y-1.5 text-xs">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-bold text-slate-500">Transaction ID (TrxID):</span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-mono font-black text-slate-900 bg-pink-50 px-2 py-0.5 rounded border border-pink-200">
+                            {selectedOrder.bkash_trx_id || "NOT ENTERED"}
+                          </span>
+                          {selectedOrder.bkash_trx_id && (
+                            <button
+                              onClick={() => handleCopyTrx(selectedOrder.bkash_trx_id!)}
+                              className="p-1 rounded hover:bg-slate-100 text-slate-500 transition-colors"
+                              title="Copy TrxID"
+                            >
+                              {copiedTrxId ? (
+                                <Check className="w-3.5 h-3.5 text-emerald-600 stroke-[3]" />
+                              ) : (
+                                <Copy className="w-3.5 h-3.5" />
+                              )}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {selectedOrder.bkash_sender_number && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-bold text-slate-500">Sender Mobile:</span>
+                          <span className="font-mono text-slate-800 font-bold">
+                            {selectedOrder.bkash_sender_number}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    {selectedOrder.payment_status !== "paid" && (
+                      <button
+                        onClick={() => handlePaymentStatusChange(selectedOrder.id, "paid")}
+                        className="w-full py-2 bg-[#E2136E] hover:bg-pink-700 text-white text-xs font-bold rounded-xl shadow-sm flex items-center justify-center gap-1.5 transition-all active:scale-95"
+                      >
+                        <CheckCircle className="w-3.5 h-3.5" />
+                        <span>Confirm bKash Received & Mark Paid</span>
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {/* In-Person Cash Details Box */}
+                {selectedOrder.payment_method === "cash" && (
+                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs flex items-center justify-between">
+                    <div>
+                      <span className="font-bold text-slate-800 block">Payment Method: In-Person (Cash)</span>
+                      <span className="text-[10px] text-slate-500">Collect at counter or dining table</span>
+                    </div>
+                    <span
+                      className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${
+                        selectedOrder.payment_status === "paid"
+                          ? "bg-emerald-100 text-emerald-800"
+                          : "bg-slate-200 text-slate-700"
+                      }`}
+                    >
+                      {selectedOrder.payment_status}
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* Status Update Actions */}

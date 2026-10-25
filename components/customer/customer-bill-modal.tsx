@@ -216,8 +216,22 @@ export function CustomerBillModal({
               </div>
               <div className="flex justify-between text-[11px] text-slate-500 pt-1">
                 <span>Method:</span>
-                <span className="capitalize">{order.payment_method}</span>
+                <span className="font-bold text-slate-800">
+                  {order.payment_method === "bkash" ? "bKash Online Payment" : "In-Person (Cash)"}
+                </span>
               </div>
+              {order.bkash_trx_id && (
+                <div className="flex justify-between text-[11px] text-pink-700 bg-pink-50 p-1.5 rounded border border-pink-200 font-mono">
+                  <span className="font-sans font-bold">bKash TrxID:</span>
+                  <span className="font-bold">{order.bkash_trx_id}</span>
+                </div>
+              )}
+              {order.bkash_sender_number && (
+                <div className="flex justify-between text-[10px] text-slate-500 font-mono">
+                  <span className="font-sans">Sender:</span>
+                  <span>{order.bkash_sender_number}</span>
+                </div>
+              )}
             </div>
 
             {/* Perforated Receipt Footer */}

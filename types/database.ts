@@ -36,6 +36,11 @@ export interface Restaurant {
   opening_time: string;
   closing_time: string;
   is_active: boolean;
+  bkash_number?: string | null;
+  bkash_type?: 'merchant' | 'personal';
+  bkash_instructions?: string | null;
+  bkash_enabled?: boolean;
+  cash_enabled?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -135,6 +140,8 @@ export interface Order {
   status: OrderStatus;
   payment_status: PaymentStatus;
   payment_method: PaymentMethod;
+  bkash_trx_id?: string | null;
+  bkash_sender_number?: string | null;
   customer_note: string | null;
   estimated_prep_time: number;
   created_at: string;

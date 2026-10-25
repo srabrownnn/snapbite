@@ -79,6 +79,15 @@ export class SnapBiteStore {
     const merged = { ...current, ...updated, updated_at: new Date().toISOString() };
     const list = this.getAllRestaurants().map(r => (r.id === merged.id ? merged : r));
     setStorage(STORAGE_KEYS.RESTAURANTS, list);
+
+    if (typeof window !== "undefined") {
+      fetch("/api/restaurant", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(merged),
+      }).catch(() => {});
+    }
+
     return merged;
   }
 
@@ -355,6 +364,8 @@ export class SnapBiteStore {
     customerNote?: string;
     cartItems: CartItem[];
     paymentMethod?: PaymentMethod;
+    bkashTrxId?: string;
+    bkashSenderNumber?: string;
   }): Promise<Order> {
     // 1. Create order synchronously in local storage immediately for fast UI feedback
     const localOrder = this.createOrder(params);
@@ -392,6 +403,8 @@ export class SnapBiteStore {
     customerNote?: string;
     cartItems: CartItem[];
     paymentMethod?: PaymentMethod;
+    bkashTrxId?: string;
+    bkashSenderNumber?: string;
   }): Order {
     const restaurant = this.getRestaurant(params.restaurantId);
     const table = this.getTableById(params.tableId);
@@ -453,6 +466,8 @@ export class SnapBiteStore {
       status: "pending",
       payment_status: params.paymentMethod === "online" ? "paid" : "unpaid",
       payment_method: params.paymentMethod || "cash",
+      bkash_trx_id: params.bkashTrxId || null,
+      bkash_sender_number: params.bkashSenderNumber || null,
       customer_note: params.customerNote || null,
       estimated_prep_time: 20,
       created_at: new Date().toISOString(),

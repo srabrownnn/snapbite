@@ -27,6 +27,10 @@ export async function POST(req: NextRequest) {
       customerNote,
       cartItems,
       paymentMethod,
+      bkashTrxId,
+      bkash_trx_id,
+      bkashSenderNumber,
+      bkash_sender_number,
     } = body;
 
     if (!restaurantId || !tableId || !cartItems || !Array.isArray(cartItems) || cartItems.length === 0) {
@@ -57,6 +61,8 @@ export async function POST(req: NextRequest) {
       customerNote,
       cartItems,
       paymentMethod: paymentMethod || "cash",
+      bkashTrxId: bkashTrxId || bkash_trx_id,
+      bkashSenderNumber: bkashSenderNumber || bkash_sender_number,
     });
 
     return NextResponse.json({ success: true, order }, { status: 201 });

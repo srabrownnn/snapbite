@@ -282,6 +282,8 @@ export class ServerStore {
     customerNote?: string;
     cartItems: CartItem[];
     paymentMethod?: PaymentMethod;
+    bkashTrxId?: string;
+    bkashSenderNumber?: string;
   }): Order {
     const restaurant = this.getRestaurant(params.restaurantId);
     const table = this.getTableById(params.tableId);
@@ -343,6 +345,8 @@ export class ServerStore {
       status: "pending",
       payment_status: params.paymentMethod === "online" ? "paid" : "unpaid",
       payment_method: params.paymentMethod || "cash",
+      bkash_trx_id: params.bkashTrxId || null,
+      bkash_sender_number: params.bkashSenderNumber || null,
       customer_note: params.customerNote || null,
       estimated_prep_time: 20,
       created_at: new Date().toISOString(),
