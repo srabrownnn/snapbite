@@ -40,6 +40,13 @@ export interface Restaurant {
   bkash_type?: 'merchant' | 'personal';
   bkash_instructions?: string | null;
   bkash_enabled?: boolean;
+  bkash_mode?: 'sandbox' | 'live';
+  bkash_app_key?: string | null;
+  bkash_app_secret?: string | null;
+  bkash_username?: string | null;
+  bkash_password?: string | null;
+  bkash_merchant_number?: string | null;
+  bkash_pgw_enabled?: boolean;
   cash_enabled?: boolean;
   created_at: string;
   updated_at: string;
@@ -140,6 +147,7 @@ export interface Order {
   status: OrderStatus;
   payment_status: PaymentStatus;
   payment_method: PaymentMethod;
+  bkash_payment_id?: string | null;
   bkash_trx_id?: string | null;
   bkash_sender_number?: string | null;
   customer_note: string | null;

@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { MenuItem, AddOn } from "@/types/database";
 import { formatCurrency } from "@/lib/utils";
-import { X, Star, Clock, Flame, Plus, Minus, Check, MessageSquare } from "lucide-react";
+import { X, Star, Clock, Flame, Plus, Minus, Check, MessageSquare, Zap } from "lucide-react";
 
 interface FoodDetailSheetProps {
   item: MenuItem | null;
@@ -253,16 +253,19 @@ export function FoodDetailSheet({
             </button>
           </div>
 
-          {/* Add to Cart Submit */}
+          {/* Direct Place Order Submit */}
           <button
             onClick={() => {
               onAddToCart(item, quantity, selectedAddons, specialInstructions);
               onClose();
             }}
             disabled={!item.is_available}
-            className="flex-1 bg-orange-600 hover:bg-orange-700 disabled:bg-slate-300 text-white font-bold py-3 px-4 rounded-xl shadow-lg shadow-orange-500/25 flex items-center justify-between transition-all active:scale-[0.98]"
+            className="flex-1 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 disabled:bg-slate-300 text-white font-extrabold py-3.5 px-4 rounded-xl shadow-lg shadow-orange-500/25 flex items-center justify-between transition-all active:scale-[0.98]"
           >
-            <span>Add to Cart</span>
+            <span className="flex items-center gap-1.5">
+              <Zap className="w-4 h-4 fill-white" />
+              <span>Place Order Now</span>
+            </span>
             <span>{formatCurrency(totalPrice, currency)}</span>
           </button>
         </div>

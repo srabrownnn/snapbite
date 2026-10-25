@@ -104,19 +104,29 @@ export function CustomerHeader({
             <Bell className="w-5 h-5" />
           </button>
 
-          {/* Cart Button */}
-          <button
-            onClick={onOpenCart}
-            aria-label="View Cart"
-            className="relative p-2 rounded-full bg-orange-600 text-white shadow-sm hover:bg-orange-700 active:scale-95 transition-all"
-          >
-            <ShoppingBag className="w-5 h-5" />
-            {totalCount > 0 && (
-              <span className="absolute -top-1 -right-1 bg-red-600 text-white text-[11px] font-bold h-5 min-w-[20px] px-1 rounded-full flex items-center justify-center border-2 border-white animate-scale">
-                {totalCount}
+          {/* Active Orders / Live Tracker Button */}
+          {activeOrderCount > 0 ? (
+            <button
+              onClick={onOpenActiveOrder}
+              aria-label="Track Active Orders"
+              title="Track Kitchen Orders"
+              className="relative p-2 rounded-full bg-emerald-600 text-white shadow-sm hover:bg-emerald-700 active:scale-95 transition-all"
+            >
+              <UtensilsCrossed className="w-5 h-5" />
+              <span className="absolute -top-1 -right-1 bg-amber-500 text-slate-900 text-[10px] font-black h-4 min-w-[16px] px-1 rounded-full flex items-center justify-center border-2 border-white animate-pulse">
+                {activeOrderCount}
               </span>
-            )}
-          </button>
+            </button>
+          ) : (
+            <button
+              onClick={onOpenBill}
+              aria-label="Dining Bill & Orders"
+              title="Dining Bill & Orders"
+              className="relative p-2 rounded-full bg-orange-600 text-white shadow-sm hover:bg-orange-700 active:scale-95 transition-all"
+            >
+              <Receipt className="w-5 h-5" />
+            </button>
+          )}
         </div>
       </div>
 

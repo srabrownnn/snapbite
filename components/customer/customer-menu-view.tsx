@@ -14,10 +14,11 @@ import { ReadyNotificationBanner } from "@/components/customer/ready-notificatio
 import { WaiterCallModal } from "@/components/customer/waiter-call-modal";
 import { ReviewsModal } from "@/components/customer/reviews-modal";
 import { CustomerBillModal } from "@/components/customer/customer-bill-modal";
+import { DirectOrderModal } from "@/components/customer/direct-order-modal";
 import { useCart } from "@/lib/store/cart-context";
 import { playOrderReadySound } from "@/lib/audio";
 import { formatCurrency } from "@/lib/utils";
-import { Bell, ShoppingBag, AlertTriangle, ArrowRight } from "lucide-react";
+import { Bell, ShoppingBag, AlertTriangle, ArrowRight, Receipt, Zap } from "lucide-react";
 
 interface CustomerMenuViewProps {
   initialRestaurant: Restaurant;
@@ -38,6 +39,7 @@ export function CustomerMenuView({ initialRestaurant, table }: CustomerMenuViewP
 
   // Modals & Sheets
   const [selectedItemForDetail, setSelectedItemForDetail] = useState<MenuItem | null>(null);
+  const [directOrderItem, setDirectOrderItem] = useState<MenuItem | null>(null);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isWaiterCallOpen, setIsWaiterCallOpen] = useState(false);
   const [isReviewsOpen, setIsReviewsOpen] = useState(false);
@@ -76,6 +78,25 @@ export function CustomerMenuView({ initialRestaurant, table }: CustomerMenuViewP
 
   useEffect(() => {
     refreshData();
+
+    // Check for bKash return parameters in URL (e.g. ?orderId=...&payment=success)
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const payment = params.get("payment");
+      const orderId = params.get("orderId");
+      if ((payment === "success" || payment === "verified") && orderId) {
+        fetch(`/api/orders/${orderId}`, { cache: "no-store" })
+          .then((res) => res.json())
+          .then((data) => {
+            if (data.order) {
+              setTrackedOrder(data.order);
+              setIsOrderStatusOpen(true);
+              refreshData();
+            }
+          })
+          .catch(() => {});
+      }
+    }
 
     // Listen for custom store updates & realtime order events
     const handleStoreUpdate = () => refreshData();
@@ -303,7 +324,7 @@ export function CustomerMenuView({ initialRestaurant, table }: CustomerMenuViewP
               currency={restaurant.currency}
               onSelect={(food) => setSelectedItemForDetail(food)}
               onQuickAdd={(food) => {
-                addItem(food, 1, [], "");
+                setDirectOrderItem(food);
               }}
             />
           ))
@@ -311,58 +332,48 @@ export function CustomerMenuView({ initialRestaurant, table }: CustomerMenuViewP
       </main>
 
       {/* Floating Bottom Quick Actions */}
-      <div className="fixed bottom-4 left-4 right-4 z-30 max-w-md mx-auto flex items-center gap-3">
+      <div className="fixed bottom-4 left-4 right-4 z-30 max-w-md mx-auto flex items-center gap-2.5">
         {/* Floating Call Waiter Button */}
         <button
           onClick={() => setIsWaiterCallOpen(true)}
-          className="bg-white/95 backdrop-blur-md text-slate-800 border border-slate-300 font-bold text-xs py-3 px-4 rounded-2xl shadow-lg flex items-center gap-2 hover:bg-slate-50 active:scale-95 transition-all shrink-0"
+          className="bg-white/95 backdrop-blur-md text-slate-800 border border-slate-300 font-bold text-xs py-3 px-3.5 rounded-2xl shadow-lg flex items-center gap-1.5 hover:bg-slate-50 active:scale-95 transition-all shrink-0"
         >
           <Bell className="w-4 h-4 text-amber-600" />
           <span>Call Staff</span>
         </button>
 
-        {/* Sticky Cart CTA */}
-        {totalCount > 0 ? (
-          <button
-            onClick={() => setIsCartOpen(true)}
-            className="flex-1 bg-gradient-to-r from-orange-600 to-amber-600 text-white font-bold text-xs sm:text-sm py-3.5 px-4 rounded-2xl shadow-xl shadow-orange-600/30 flex items-center justify-between active:scale-[0.98] transition-all animate-bounce-subtle"
-          >
-            <div className="flex items-center gap-2">
-              <span className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center text-xs font-black">
-                {totalCount}
-              </span>
-              <span>View Cart</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span>
-                {formatCurrency(
-                  totalWithTaxes(
-                    restaurant.tax_percentage,
-                    restaurant.service_charge_percentage
-                  ),
-                  restaurant.currency
-                )}
-              </span>
-              <ArrowRight className="w-4 h-4" />
-            </div>
-          </button>
-        ) : activeOrders.length > 0 ? (
+        {/* Floating View Dining Bill Button */}
+        <button
+          onClick={() => {
+            if (activeOrders.length > 0 && !trackedOrder) {
+              setTrackedOrder(activeOrders[0]);
+            }
+            setIsCustomerBillOpen(true);
+          }}
+          className="bg-white/95 backdrop-blur-md text-slate-800 border border-slate-300 font-bold text-xs py-3 px-3.5 rounded-2xl shadow-lg flex items-center gap-1.5 hover:bg-slate-50 active:scale-95 transition-all shrink-0"
+        >
+          <Receipt className="w-4 h-4 text-orange-600" />
+          <span>My Bill</span>
+        </button>
+
+        {/* Live Active Order Status Tracker */}
+        {activeOrders.length > 0 && (
           <button
             onClick={() => {
               setTrackedOrder(activeOrders[0]);
               setIsOrderStatusOpen(true);
             }}
-            className="flex-1 bg-slate-900 text-white font-bold text-xs py-3.5 px-4 rounded-2xl shadow-lg flex items-center justify-between active:scale-[0.98] transition-all"
+            className="flex-1 bg-slate-900 text-white font-bold text-xs py-3 px-3.5 rounded-2xl shadow-xl flex items-center justify-between active:scale-[0.98] transition-all min-w-0"
           >
-            <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
-              <span>Track Order {activeOrders[0].order_number}</span>
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0"></span>
+              <span className="truncate">Order #{activeOrders[0].order_number}</span>
             </div>
-            <span className="capitalize font-semibold text-orange-400">
+            <span className="capitalize font-black text-orange-400 shrink-0 text-[11px] ml-1">
               {activeOrders[0].status} →
             </span>
           </button>
-        ) : null}
+        )}
       </div>
 
       {/* Modals & Drawers */}
@@ -372,11 +383,26 @@ export function CustomerMenuView({ initialRestaurant, table }: CustomerMenuViewP
         isOpen={Boolean(selectedItemForDetail)}
         onClose={() => setSelectedItemForDetail(null)}
         onAddToCart={(item, qty, addons, note) => {
-          addItem(item, qty, addons, note);
+          setSelectedItemForDetail(null);
+          setDirectOrderItem(item);
         }}
         onViewReviews={(item) => {
           setReviewFocusItem(item);
           setIsReviewsOpen(true);
+        }}
+      />
+
+      {/* Direct Order Modal (Replaces Add to Cart) */}
+      <DirectOrderModal
+        item={directOrderItem}
+        restaurant={restaurant}
+        table={table}
+        isOpen={Boolean(directOrderItem)}
+        onClose={() => setDirectOrderItem(null)}
+        onOrderPlaced={(order) => {
+          setTrackedOrder(order);
+          setIsOrderStatusOpen(true);
+          refreshData();
         }}
       />
 

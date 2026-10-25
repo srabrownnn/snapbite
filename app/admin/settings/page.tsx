@@ -27,6 +27,12 @@ export default function AdminSettingsPage() {
     bkashType: "merchant" as "merchant" | "personal",
     bkashInstructions: "Make Payment or Send Money to our bKash number with your Table Number as reference. Then enter the Transaction ID (TrxID) below.",
     bkashEnabled: true,
+    bkashMode: "sandbox" as "sandbox" | "live",
+    bkashAppKey: "",
+    bkashAppSecret: "",
+    bkashUsername: "",
+    bkashPassword: "",
+    bkashPgwEnabled: true,
     cashEnabled: true,
   });
 
@@ -52,6 +58,12 @@ export default function AdminSettingsPage() {
         current.bkash_instructions ||
         "Make Payment or Send Money to our bKash number with your Table Number as reference. Then enter the Transaction ID (TrxID) below.",
       bkashEnabled: current.bkash_enabled !== false,
+      bkashMode: (current.bkash_mode as "sandbox" | "live") || "sandbox",
+      bkashAppKey: current.bkash_app_key || "",
+      bkashAppSecret: current.bkash_app_secret || "",
+      bkashUsername: current.bkash_username || "",
+      bkashPassword: current.bkash_password || "",
+      bkashPgwEnabled: current.bkash_pgw_enabled !== false,
       cashEnabled: current.cash_enabled !== false,
     });
   }, []);
@@ -76,6 +88,12 @@ export default function AdminSettingsPage() {
       bkash_type: form.bkashType,
       bkash_instructions: form.bkashInstructions.trim(),
       bkash_enabled: form.bkashEnabled,
+      bkash_mode: form.bkashMode,
+      bkash_app_key: form.bkashAppKey.trim(),
+      bkash_app_secret: form.bkashAppSecret.trim(),
+      bkash_username: form.bkashUsername.trim(),
+      bkash_password: form.bkashPassword.trim(),
+      bkash_pgw_enabled: form.bkashPgwEnabled,
       cash_enabled: form.cashEnabled,
     });
 
@@ -420,17 +438,94 @@ export default function AdminSettingsPage() {
                     </p>
                   </div>
 
-                  <div className="sm:col-span-2">
-                    <label className="font-bold text-slate-700 block mb-1">
-                      Payment Instructions for Diners
-                    </label>
-                    <textarea
-                      rows={2}
-                      value={form.bkashInstructions}
-                      onChange={(e) => setForm({ ...form, bkashInstructions: e.target.value })}
-                      placeholder="e.g. Please enter your Table Number as reference when sending payment."
-                      className="w-full p-2.5 bg-white border border-slate-300 rounded-xl text-xs text-slate-800 focus:ring-2 focus:ring-pink-500/30 outline-none resize-none"
-                    />
+                  {/* bKash Payment Gateway Credentials */}
+                  <div className="sm:col-span-2 pt-3 border-t border-pink-200/80 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h5 className="text-xs font-black uppercase text-slate-800">
+                          bKash Payment Gateway (PGW) API Configuration
+                        </h5>
+                        <p className="text-[10px] text-slate-500">
+                          Enables instant direct online checkout via official bKash Tokenized Checkout API
+                        </p>
+                      </div>
+
+                      {/* Mode Switcher */}
+                      <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-pink-200">
+                        <button
+                          type="button"
+                          onClick={() => setForm({ ...form, bkashMode: "sandbox" })}
+                          className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${
+                            form.bkashMode === "sandbox"
+                              ? "bg-amber-500 text-white shadow-sm"
+                              : "text-slate-600 hover:text-slate-900"
+                          }`}
+                        >
+                          Sandbox (Test)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setForm({ ...form, bkashMode: "live" })}
+                          className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${
+                            form.bkashMode === "live"
+                              ? "bg-[#E2136E] text-white shadow-sm"
+                              : "text-slate-600 hover:text-slate-900"
+                          }`}
+                        >
+                          Live Production
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                      <div>
+                        <label className="font-bold text-slate-700 block mb-1">bKash App Key</label>
+                        <input
+                          type="text"
+                          value={form.bkashAppKey}
+                          onChange={(e) => setForm({ ...form, bkashAppKey: e.target.value })}
+                          placeholder="e.g. 4f6xxxxxxxxx"
+                          className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl font-mono text-xs outline-none focus:ring-2 focus:ring-pink-500/30"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="font-bold text-slate-700 block mb-1">bKash App Secret</label>
+                        <input
+                          type="password"
+                          value={form.bkashAppSecret}
+                          onChange={(e) => setForm({ ...form, bkashAppSecret: e.target.value })}
+                          placeholder="••••••••••••••••••••"
+                          className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl font-mono text-xs outline-none focus:ring-2 focus:ring-pink-500/30"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="font-bold text-slate-700 block mb-1">bKash Merchant Username</label>
+                        <input
+                          type="text"
+                          value={form.bkashUsername}
+                          onChange={(e) => setForm({ ...form, bkashUsername: e.target.value })}
+                          placeholder="e.g. sandboxTokenizedUser02"
+                          className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl font-mono text-xs outline-none focus:ring-2 focus:ring-pink-500/30"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="font-bold text-slate-700 block mb-1">bKash Merchant Password</label>
+                        <input
+                          type="password"
+                          value={form.bkashPassword}
+                          onChange={(e) => setForm({ ...form, bkashPassword: e.target.value })}
+                          placeholder="••••••••••••••••••••"
+                          className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl font-mono text-xs outline-none focus:ring-2 focus:ring-pink-500/30"
+                        />
+                      </div>
+                    </div>
+
+                    <p className="text-[10px] text-slate-500 bg-white/80 p-2 rounded-lg border border-pink-100">
+                      💡 <strong>Note:</strong> In Sandbox mode, diners will experience the official bKash checkout simulation without charging a live bank account. In Live mode with valid credentials, transactions route directly to bKash servers.
+                    </p>
                   </div>
                 </div>
 

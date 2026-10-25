@@ -3,7 +3,7 @@
 import React from "react";
 import { MenuItem } from "@/types/database";
 import { formatCurrency } from "@/lib/utils";
-import { Star, Clock, Flame, Plus } from "lucide-react";
+import { Star, Clock, Flame, Zap } from "lucide-react";
 
 interface FoodCardProps {
   item: MenuItem;
@@ -102,16 +102,12 @@ export function FoodCard({ item, currency, onSelect, onQuickAdd }: FoodCardProps
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                if (hasAddons) {
-                  onSelect(item);
-                } else {
-                  onQuickAdd(item);
-                }
+                onQuickAdd(item);
               }}
-              className="inline-flex items-center gap-1 bg-orange-50 hover:bg-orange-600 text-orange-600 hover:text-white font-bold text-xs px-3 py-1.5 rounded-xl border border-orange-200 hover:border-orange-600 transition-all active:scale-95 shadow-sm"
+              className="inline-flex items-center gap-1 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-black text-xs px-3.5 py-1.5 rounded-xl shadow-md shadow-orange-500/20 active:scale-95 transition-all"
             >
-              <Plus className="w-3.5 h-3.5" />
-              <span>{hasAddons ? "Customize" : "Add"}</span>
+              <Zap className="w-3.5 h-3.5 fill-white" />
+              <span>Order Now</span>
             </button>
           ) : (
             <span className="text-[11px] font-bold text-red-500 bg-red-50 px-2 py-0.5 rounded-lg border border-red-200">
