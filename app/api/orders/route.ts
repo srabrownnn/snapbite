@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ServerStore } from "@/lib/server-store";
 import { CartItem } from "@/types/database";
+import { dispatchSaaSEvent } from "@/lib/saas-hub";
 
 export const dynamic = "force-dynamic";
 
@@ -63,6 +64,19 @@ export async function POST(req: NextRequest) {
       paymentMethod: paymentMethod || "cash",
       bkashTrxId: bkashTrxId || bkash_trx_id,
       bkashSenderNumber: bkashSenderNumber || bkash_sender_number,
+    });
+
+    // Notify SaaS Hub of live order activity
+    dispatchSaaSEvent("order.created", {
+      order_id: order.id,
+      order_number: order.order_number,
+      restaurant_id: order.restaurant_id,
+      table_id: order.table_id,
+      subtotal: order.subtotal,
+      total: order.total,
+      payment_method: order.payment_method,
+      items_count: order.items?.length || 0,
+      created_at: order.created_at,
     });
 
     return NextResponse.json({ success: true, order }, { status: 201 });

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ServerStore } from "@/lib/server-store";
+import { dispatchSaaSEvent } from "@/lib/saas-hub";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +30,18 @@ export async function POST(req: NextRequest) {
       restaurantName,
       phone,
       slug,
+    });
+
+    // Notify Central SaaS Hub if webhook is configured
+    dispatchSaaSEvent("tenant.created", {
+      restaurant_id: restaurant.id,
+      restaurant_name: restaurant.name,
+      restaurant_slug: restaurant.slug,
+      owner_id: user.id,
+      owner_name: user.full_name,
+      owner_email: user.email,
+      phone: user.phone,
+      created_at: restaurant.created_at,
     });
 
     const token = `tok_${user.id}_${Date.now()}`;

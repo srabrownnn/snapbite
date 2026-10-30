@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ServerStore } from "@/lib/server-store";
 import { BkashGateway } from "@/lib/bkash/pgw";
+import { dispatchSaaSEvent } from "@/lib/saas-hub";
 
 export const dynamic = "force-dynamic";
 
@@ -42,6 +43,18 @@ export async function POST(req: NextRequest) {
 
       // Persist in server store
       ServerStore.updateOrderPayment(order.id, "paid", "bkash");
+
+      // Notify SaaS Hub of verified payment
+      dispatchSaaSEvent("payment.completed", {
+        order_id: order.id,
+        order_number: order.order_number,
+        restaurant_id: order.restaurant_id,
+        amount: order.total,
+        payment_method: "bkash",
+        trx_id: execResponse.trxID,
+        payment_id: paymentID,
+        paid_at: new Date().toISOString(),
+      });
 
       return NextResponse.json({
         success: true,
