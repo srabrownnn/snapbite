@@ -303,15 +303,15 @@ export default function AdminSettingsPage() {
             </div>
           </div>
 
-          {/* Order Workflow & Status Tracking Simplification */}
+          {/* Customer Order Tracking & Workflow Simplification */}
           <div className="space-y-4 pt-4 border-t border-slate-100">
             <div className="flex items-center justify-between border-b border-slate-100 pb-2">
               <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
                 <ListOrdered className="w-4 h-4 text-orange-600" />
-                <span>Order Status Tracking & Workflow</span>
+                <span>Customer Order Status Stepper</span>
               </h3>
               <span className="text-[11px] font-bold text-slate-500">
-                Customer & Kitchen Experience
+                Customer UI Experience
               </span>
             </div>
 
@@ -328,7 +328,7 @@ export default function AdminSettingsPage() {
                 <div className="space-y-2 flex-1">
                   <div className="flex items-center gap-2.5 flex-wrap">
                     <span className="text-sm font-black text-slate-900">
-                      5-Step Order Status (Received, Accepted, Preparing, Ready, Served)
+                      Customer 5-Step Order Progress (Received, Accepted, Preparing, Ready, Served)
                     </span>
                     <span
                       className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider ${
@@ -337,19 +337,19 @@ export default function AdminSettingsPage() {
                           : "bg-emerald-100 text-emerald-800 border border-emerald-200"
                       }`}
                     >
-                      {form.orderTrackingEnabled ? "5 Stages Active" : "Simplified Mode (Turned OFF)"}
+                      {form.orderTrackingEnabled ? "5 Stages Active" : "Simplified Confirmation Mode"}
                     </span>
                   </div>
 
                   <p className="text-xs text-slate-600 leading-relaxed">
                     {form.orderTrackingEnabled ? (
                       <>
-                        Orders progress through 5 distinct stages:{" "}
-                        <strong>Order Received ➔ Accepted ➔ Preparing ➔ Ready ➔ Served</strong>. Customers view a live stepper timeline, and the kitchen manages 5 Kanban columns.
+                        Customers view a live multi-step status stepper:{" "}
+                        <strong>Order Received ➔ Accepted ➔ Preparing ➔ Ready ➔ Served</strong>. The kitchen operates in fast 1-click fulfillment.
                       </>
                     ) : (
                       <>
-                        <strong>Simplified Interface Active:</strong> Removes Order Received, Accepted, Preparing, Ready, and Served. Diners receive a clean, instant confirmation with direct bill access, and the kitchen gets a streamlined 1-click completion screen.
+                        <strong>Simplified Interface Active:</strong> Removes the 5-stage timeline from the customer screen. Diners receive a clean, instant confirmation with direct access to their printable bill and staff calls.
                       </>
                     )}
                   </p>
@@ -371,7 +371,7 @@ export default function AdminSettingsPage() {
                     ) : (
                       <div className="flex items-center gap-2 text-[11px] font-bold text-emerald-900 bg-emerald-100/60 p-2.5 rounded-xl border border-emerald-200">
                         <Check className="w-4 h-4 text-emerald-600 shrink-0 stroke-[3]" />
-                        <span>Simple Customer Confirmation & 1-Click Kitchen Done Fulfillment</span>
+                        <span>Frictionless Order Confirmation with Direct Bill Access</span>
                       </div>
                     )}
                   </div>
