@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ServerStore } from "@/lib/server-store";
+import bcrypt from "bcryptjs";
 
 export const dynamic = "force-dynamic";
 
@@ -23,7 +24,17 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (user.password && user.password !== password) {
+    let isPasswordValid = false;
+    if (user.password) {
+      if (user.password.startsWith("$2a$") || user.password.startsWith("$2b$")) {
+        isPasswordValid = bcrypt.compareSync(password, user.password);
+      } else {
+        // Fallback for demo accounts
+        isPasswordValid = user.password === password;
+      }
+    }
+
+    if (!isPasswordValid) {
       return NextResponse.json(
         { error: "Incorrect password. Please try again." },
         { status: 401 }

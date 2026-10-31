@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ServerStore } from "@/lib/server-store";
 import { dispatchSaaSEvent } from "@/lib/saas-hub";
+import bcrypt from "bcryptjs";
 
 export const dynamic = "force-dynamic";
 
@@ -23,10 +24,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Secure password hashing with bcryptjs
+    const hashedPassword = bcrypt.hashSync(password, 10);
+
     const { user, restaurant } = ServerStore.createRestaurantWithOwner({
       fullName,
       email,
-      password,
+      password: hashedPassword,
       restaurantName,
       phone,
       slug,
