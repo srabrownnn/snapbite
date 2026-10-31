@@ -349,7 +349,7 @@ export default function AdminSettingsPage() {
                       </>
                     ) : (
                       <>
-                        <strong>Simplified Interface Active:</strong> Removes the 5-stage timeline from the customer screen. Diners receive a clean, instant confirmation with direct access to their printable bill and staff calls.
+                        <strong>Simplified Interface Active:</strong> Removes the 5-stage timeline from the customer screen and simplifies Order Management and Kitchen workflows into clean Active & Completed queues. Diners receive an instant confirmation with direct access to their printable bill and staff calls.
                       </>
                     )}
                   </p>

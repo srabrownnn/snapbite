@@ -47,10 +47,13 @@ export default function AdminDashboardPage() {
   const totalRevenue = validOrders.reduce((sum, o) => sum + o.total, 0);
   const averageOrderValue = validOrders.length > 0 ? totalRevenue / validOrders.length : 0;
 
+  const isSimpleMode = restaurant.order_tracking_enabled === false;
+  const activeOrders = orders.filter((o) => !["completed", "served", "cancelled"].includes(o.status)).length;
   const pendingOrders = orders.filter((o) => o.status === "pending").length;
   const preparingOrders = orders.filter((o) => o.status === "preparing").length;
   const readyOrders = orders.filter((o) => o.status === "ready").length;
   const completedOrders = orders.filter((o) => o.status === "completed" || o.status === "served").length;
+  const cancelledOrders = orders.filter((o) => o.status === "cancelled").length;
 
   const occupiedTables = tables.filter((t) => t.status === "occupied").length;
   const tableUtilization = tables.length > 0 ? Math.round((occupiedTables / tables.length) * 100) : 0;
@@ -151,7 +154,9 @@ export default function AdminDashboardPage() {
               </span>
               <div className="text-2xl font-black text-slate-900 mt-1">{orders.length}</div>
               <div className="flex items-center gap-1 text-[11px] font-bold text-orange-600 mt-2">
-                <span>{pendingOrders} awaiting acceptance</span>
+                <span>
+                  {isSimpleMode ? `${activeOrders} active in kitchen` : `${pendingOrders} awaiting acceptance`}
+                </span>
               </div>
             </div>
             <div className="w-11 h-11 rounded-2xl bg-orange-50 text-orange-600 flex items-center justify-center border border-orange-200">
@@ -197,39 +202,67 @@ export default function AdminDashboardPage() {
         </div>
 
         {/* Live Operational Status Strip */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3.5 flex items-center justify-between">
-            <div>
-              <span className="text-[11px] font-bold uppercase text-amber-800">Pending</span>
-              <div className="text-xl font-black text-amber-950 mt-0.5">{pendingOrders}</div>
+        {isSimpleMode ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-3.5 flex items-center justify-between">
+              <div>
+                <span className="text-[11px] font-bold uppercase text-emerald-800">Active Kitchen Orders</span>
+                <div className="text-xl font-black text-emerald-950 mt-0.5">{activeOrders}</div>
+              </div>
+              <span className="w-3 h-3 rounded-full bg-emerald-500 animate-ping"></span>
             </div>
-            <span className="w-3 h-3 rounded-full bg-amber-500 animate-ping"></span>
-          </div>
 
-          <div className="bg-orange-50 border border-orange-200 rounded-2xl p-3.5 flex items-center justify-between">
-            <div>
-              <span className="text-[11px] font-bold uppercase text-orange-800">Preparing</span>
-              <div className="text-xl font-black text-orange-950 mt-0.5">{preparingOrders}</div>
+            <div className="bg-purple-50 border border-purple-200 rounded-2xl p-3.5 flex items-center justify-between">
+              <div>
+                <span className="text-[11px] font-bold uppercase text-purple-800">Completed Orders</span>
+                <div className="text-xl font-black text-purple-950 mt-0.5">{completedOrders}</div>
+              </div>
+              <CheckCircle className="w-4 h-4 text-purple-600" />
             </div>
-            <Flame className="w-4 h-4 text-orange-600" />
-          </div>
 
-          <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-3.5 flex items-center justify-between">
-            <div>
-              <span className="text-[11px] font-bold uppercase text-emerald-800">Ready</span>
-              <div className="text-xl font-black text-emerald-950 mt-0.5">{readyOrders}</div>
+            <div className="col-span-2 sm:col-span-1 bg-slate-100 border border-slate-200 rounded-2xl p-3.5 flex items-center justify-between">
+              <div>
+                <span className="text-[11px] font-bold uppercase text-slate-700">Cancelled / Voided</span>
+                <div className="text-xl font-black text-slate-900 mt-0.5">{cancelledOrders}</div>
+              </div>
+              <span className="text-xs font-bold text-slate-400">Archived</span>
             </div>
-            <CheckCircle className="w-4 h-4 text-emerald-600" />
           </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3.5 flex items-center justify-between">
+              <div>
+                <span className="text-[11px] font-bold uppercase text-amber-800">Pending</span>
+                <div className="text-xl font-black text-amber-950 mt-0.5">{pendingOrders}</div>
+              </div>
+              <span className="w-3 h-3 rounded-full bg-amber-500 animate-ping"></span>
+            </div>
 
-          <div className="bg-slate-100 border border-slate-200 rounded-2xl p-3.5 flex items-center justify-between">
-            <div>
-              <span className="text-[11px] font-bold uppercase text-slate-700">Completed</span>
-              <div className="text-xl font-black text-slate-900 mt-0.5">{completedOrders}</div>
+            <div className="bg-orange-50 border border-orange-200 rounded-2xl p-3.5 flex items-center justify-between">
+              <div>
+                <span className="text-[11px] font-bold uppercase text-orange-800">Preparing</span>
+                <div className="text-xl font-black text-orange-950 mt-0.5">{preparingOrders}</div>
+              </div>
+              <Flame className="w-4 h-4 text-orange-600" />
             </div>
-            <CheckCircle className="w-4 h-4 text-slate-500" />
+
+            <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-3.5 flex items-center justify-between">
+              <div>
+                <span className="text-[11px] font-bold uppercase text-emerald-800">Ready</span>
+                <div className="text-xl font-black text-emerald-950 mt-0.5">{readyOrders}</div>
+              </div>
+              <CheckCircle className="w-4 h-4 text-emerald-600" />
+            </div>
+
+            <div className="bg-slate-100 border border-slate-200 rounded-2xl p-3.5 flex items-center justify-between">
+              <div>
+                <span className="text-[11px] font-bold uppercase text-slate-700">Completed</span>
+                <div className="text-xl font-black text-slate-900 mt-0.5">{completedOrders}</div>
+              </div>
+              <CheckCircle className="w-4 h-4 text-slate-500" />
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Charts & Popular Foods 2-Column Section */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

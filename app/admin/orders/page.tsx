@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { AdminLayout } from "@/components/admin/admin-layout";
 import { SnapBiteStore } from "@/lib/store/demo-store";
-import { Order, OrderStatus, PaymentStatus } from "@/types/database";
+import { Order, OrderStatus, PaymentStatus, Restaurant } from "@/types/database";
 import { formatCurrency, formatDateTime } from "@/lib/utils";
 import { printThermalReceipt } from "@/lib/receipt/printer";
 import {
@@ -22,24 +22,18 @@ import {
   Copy,
   Check,
   Smartphone,
+  Layers,
 } from "lucide-react";
 
-const FILTER_TABS: { label: string; value: string }[] = [
-  { label: "All Orders", value: "all" },
-  { label: "Pending", value: "pending" },
-  { label: "Accepted", value: "accepted" },
-  { label: "Preparing", value: "preparing" },
-  { label: "Ready", value: "ready" },
-  { label: "Served / Done", value: "served" },
-  { label: "Cancelled", value: "cancelled" },
-];
-
 export default function AdminOrdersPage() {
+  const [restaurant, setRestaurant] = useState<Restaurant>(SnapBiteStore.getRestaurant());
   const [orders, setOrders] = useState<Order[]>([]);
   const [selectedFilter, setSelectedFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [copiedTrxId, setCopiedTrxId] = useState(false);
+
+  const isSimpleMode = restaurant.order_tracking_enabled === false;
 
   const handleCopyTrx = (trxId: string) => {
     if (typeof navigator !== "undefined" && navigator.clipboard) {
@@ -49,10 +43,10 @@ export default function AdminOrdersPage() {
     }
   };
 
-  const restaurant = SnapBiteStore.getRestaurant();
-
   const loadOrders = () => {
-    const list = SnapBiteStore.getOrders(restaurant.id);
+    const currentRest = SnapBiteStore.getRestaurant();
+    setRestaurant(currentRest);
+    const list = SnapBiteStore.getOrders(currentRest.id);
     setOrders(list);
     if (selectedOrder) {
       const refreshed = list.find((o) => o.id === selectedOrder.id);
@@ -67,7 +61,8 @@ export default function AdminOrdersPage() {
     window.addEventListener("snapbite_order_status_change", handleUpdate);
 
     const syncInterval = setInterval(async () => {
-      const result = await SnapBiteStore.syncWithCloudServer(restaurant.id);
+      const currentRest = SnapBiteStore.getRestaurant();
+      const result = await SnapBiteStore.syncWithCloudServer(currentRest.id);
       setOrders(result.orders);
     }, 3500);
 
@@ -76,7 +71,44 @@ export default function AdminOrdersPage() {
       window.removeEventListener("snapbite_order_status_change", handleUpdate);
       clearInterval(syncInterval);
     };
-  }, [restaurant.id]);
+  }, []);
+
+  // Compute dynamic tabs based on simple mode toggle
+  const tabCounts = {
+    all: orders.length,
+    active: orders.filter((o) => !["completed", "served", "cancelled"].includes(o.status)).length,
+    completed: orders.filter((o) => o.status === "completed" || o.status === "served").length,
+    cancelled: orders.filter((o) => o.status === "cancelled").length,
+    pending: orders.filter((o) => o.status === "pending").length,
+    accepted: orders.filter((o) => o.status === "accepted").length,
+    preparing: orders.filter((o) => o.status === "preparing").length,
+    ready: orders.filter((o) => o.status === "ready").length,
+    served: orders.filter((o) => o.status === "served" || o.status === "completed").length,
+  };
+
+  const filterTabs = isSimpleMode
+    ? [
+        { label: "All Orders", value: "all", count: tabCounts.all },
+        { label: "Active Orders", value: "active", count: tabCounts.active },
+        { label: "Completed", value: "completed", count: tabCounts.completed },
+        { label: "Cancelled", value: "cancelled", count: tabCounts.cancelled },
+      ]
+    : [
+        { label: "All Orders", value: "all", count: tabCounts.all },
+        { label: "Pending", value: "pending", count: tabCounts.pending },
+        { label: "Accepted", value: "accepted", count: tabCounts.accepted },
+        { label: "Preparing", value: "preparing", count: tabCounts.preparing },
+        { label: "Ready", value: "ready", count: tabCounts.ready },
+        { label: "Served / Done", value: "served", count: tabCounts.served },
+        { label: "Cancelled", value: "cancelled", count: tabCounts.cancelled },
+      ];
+
+  // If previous filter doesn't exist in current tab set, revert to 'all'
+  useEffect(() => {
+    if (!filterTabs.some((t) => t.value === selectedFilter)) {
+      setSelectedFilter("all");
+    }
+  }, [isSimpleMode, filterTabs, selectedFilter]);
 
   const handleStatusChange = (orderId: string, newStatus: OrderStatus) => {
     SnapBiteStore.updateOrderStatus(orderId, newStatus);
@@ -89,12 +121,24 @@ export default function AdminOrdersPage() {
   };
 
   const filteredOrders = orders.filter((o) => {
-    const matchesFilter =
-      selectedFilter === "all"
-        ? true
-        : selectedFilter === "served"
-        ? o.status === "served" || o.status === "completed"
-        : o.status === selectedFilter;
+    let matchesFilter = true;
+    if (isSimpleMode) {
+      if (selectedFilter === "active") {
+        matchesFilter = !["completed", "served", "cancelled"].includes(o.status);
+      } else if (selectedFilter === "completed") {
+        matchesFilter = o.status === "completed" || o.status === "served";
+      } else if (selectedFilter === "cancelled") {
+        matchesFilter = o.status === "cancelled";
+      } else {
+        matchesFilter = true;
+      }
+    } else {
+      if (selectedFilter === "served") {
+        matchesFilter = o.status === "served" || o.status === "completed";
+      } else if (selectedFilter !== "all") {
+        matchesFilter = o.status === selectedFilter;
+      }
+    }
 
     const matchesSearch =
       searchQuery.trim() === ""
@@ -114,11 +158,24 @@ export default function AdminOrdersPage() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-              Order Management
-            </h1>
+            <div className="flex items-center gap-2.5">
+              <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+                Order Management
+              </h1>
+              {isSimpleMode ? (
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                  Simple Mode (1-Click)
+                </span>
+              ) : (
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-100 text-blue-800 border border-blue-200">
+                  5-Stage Tracking Active
+                </span>
+              )}
+            </div>
             <p className="text-xs sm:text-sm text-slate-500 mt-1">
-              Live status tracking, order modification, and payment reconciliations.
+              {isSimpleMode
+                ? "Simplified order queue with 1-click active & completed status workflows."
+                : "Live status tracking, order modification, and payment reconciliations."}
             </p>
           </div>
         </div>
@@ -128,19 +185,28 @@ export default function AdminOrdersPage() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             {/* Horizontal Filter Tabs */}
             <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1 sm:pb-0">
-              {FILTER_TABS.map((tab) => {
+              {filterTabs.map((tab) => {
                 const isSelected = selectedFilter === tab.value;
                 return (
                   <button
                     key={tab.value}
                     onClick={() => setSelectedFilter(tab.value)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 ${
                       isSelected
                         ? "bg-orange-600 text-white shadow-sm"
                         : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                     }`}
                   >
-                    {tab.label}
+                    <span>{tab.label}</span>
+                    <span
+                      className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${
+                        isSelected
+                          ? "bg-white/20 text-white"
+                          : "bg-slate-200 text-slate-600"
+                      }`}
+                    >
+                      {tab.count}
+                    </span>
                   </button>
                 );
               })}
@@ -212,23 +278,41 @@ export default function AdminOrdersPage() {
                         {formatCurrency(order.total, restaurant.currency)}
                       </td>
                       <td className="p-4">
-                        <span
-                          className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase ${
-                            order.status === "pending"
-                              ? "bg-amber-100 text-amber-800"
-                              : order.status === "accepted"
-                              ? "bg-blue-100 text-blue-800"
-                              : order.status === "preparing"
-                              ? "bg-orange-100 text-orange-800"
-                              : order.status === "ready"
-                              ? "bg-emerald-100 text-emerald-800"
+                        {isSimpleMode ? (
+                          <span
+                            className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase ${
+                              order.status === "cancelled"
+                                ? "bg-red-100 text-red-800"
+                                : order.status === "completed" || order.status === "served"
+                                ? "bg-purple-100 text-purple-800"
+                                : "bg-emerald-100 text-emerald-800"
+                            }`}
+                          >
+                            {order.status === "cancelled"
+                              ? "Cancelled"
                               : order.status === "completed" || order.status === "served"
-                              ? "bg-purple-100 text-purple-800"
-                              : "bg-red-100 text-red-800"
-                          }`}
-                        >
-                          {order.status}
-                        </span>
+                              ? "Completed"
+                              : "Active"}
+                          </span>
+                        ) : (
+                          <span
+                            className={`inline-block px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase ${
+                              order.status === "pending"
+                                ? "bg-amber-100 text-amber-800"
+                                : order.status === "accepted"
+                                ? "bg-blue-100 text-blue-800"
+                                : order.status === "preparing"
+                                ? "bg-orange-100 text-orange-800"
+                                : order.status === "ready"
+                                ? "bg-emerald-100 text-emerald-800"
+                                : order.status === "completed" || order.status === "served"
+                                ? "bg-purple-100 text-purple-800"
+                                : "bg-red-100 text-red-800"
+                            }`}
+                          >
+                            {order.status}
+                          </span>
+                        )}
                       </td>
                       <td className="p-4">
                         <div className="space-y-1">
@@ -296,10 +380,47 @@ export default function AdminOrdersPage() {
             <div className="relative w-full max-w-lg bg-white rounded-3xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto no-scrollbar space-y-5">
               <div className="flex items-start justify-between border-b border-slate-100 pb-3">
                 <div>
-                  <h3 className="text-xl font-black text-slate-900">
-                    Order {selectedOrder.order_number}
-                  </h3>
-                  <p className="text-xs text-orange-600 font-bold">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-xl font-black text-slate-900">
+                      Order {selectedOrder.order_number}
+                    </h3>
+                    {isSimpleMode ? (
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
+                          selectedOrder.status === "cancelled"
+                            ? "bg-red-100 text-red-800"
+                            : selectedOrder.status === "completed" || selectedOrder.status === "served"
+                            ? "bg-purple-100 text-purple-800"
+                            : "bg-emerald-100 text-emerald-800"
+                        }`}
+                      >
+                        {selectedOrder.status === "cancelled"
+                          ? "Cancelled"
+                          : selectedOrder.status === "completed" || selectedOrder.status === "served"
+                          ? "Completed"
+                          : "Active"}
+                      </span>
+                    ) : (
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
+                          selectedOrder.status === "pending"
+                            ? "bg-amber-100 text-amber-800"
+                            : selectedOrder.status === "accepted"
+                            ? "bg-blue-100 text-blue-800"
+                            : selectedOrder.status === "preparing"
+                            ? "bg-orange-100 text-orange-800"
+                            : selectedOrder.status === "ready"
+                            ? "bg-emerald-100 text-emerald-800"
+                            : selectedOrder.status === "completed" || selectedOrder.status === "served"
+                            ? "bg-purple-100 text-purple-800"
+                            : "bg-red-100 text-red-800"
+                        }`}
+                      >
+                        {selectedOrder.status}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-orange-600 font-bold mt-0.5">
                     {selectedOrder.table?.table_number || "Table N/A"} •{" "}
                     {formatDateTime(selectedOrder.created_at)}
                   </p>
@@ -494,35 +615,54 @@ export default function AdminOrdersPage() {
                   <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
                     Update Order Status
                   </h4>
-                  {restaurant.order_tracking_enabled === false && (
+                  {isSimpleMode && (
                     <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full">
                       Simple Mode Active
                     </span>
                   )}
                 </div>
 
-                {restaurant.order_tracking_enabled === false ? (
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      onClick={() => handleStatusChange(selectedOrder.id, "pending")}
-                      className={`py-2.5 rounded-xl text-xs font-bold transition-all ${
-                        selectedOrder.status !== "completed" && selectedOrder.status !== "served" && selectedOrder.status !== "cancelled"
-                          ? "bg-orange-600 text-white shadow-md"
-                          : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                      }`}
-                    >
-                      Active in Kitchen
-                    </button>
-                    <button
-                      onClick={() => handleStatusChange(selectedOrder.id, "completed")}
-                      className={`py-2.5 rounded-xl text-xs font-bold transition-all ${
-                        selectedOrder.status === "completed" || selectedOrder.status === "served"
-                          ? "bg-emerald-600 text-white shadow-md"
-                          : "bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-200"
-                      }`}
-                    >
-                      Mark Completed ✓
-                    </button>
+                {isSimpleMode ? (
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => handleStatusChange(selectedOrder.id, "pending")}
+                        className={`py-2.5 rounded-xl text-xs font-bold transition-all ${
+                          selectedOrder.status !== "completed" &&
+                          selectedOrder.status !== "served" &&
+                          selectedOrder.status !== "cancelled"
+                            ? "bg-orange-600 text-white shadow-md ring-2 ring-orange-500/30"
+                            : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                        }`}
+                      >
+                        Active in Kitchen
+                      </button>
+                      <button
+                        onClick={() => handleStatusChange(selectedOrder.id, "completed")}
+                        className={`py-2.5 rounded-xl text-xs font-bold transition-all ${
+                          selectedOrder.status === "completed" || selectedOrder.status === "served"
+                            ? "bg-emerald-600 text-white shadow-md ring-2 ring-emerald-500/30"
+                            : "bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-200"
+                        }`}
+                      >
+                        Mark Completed ✓
+                      </button>
+                    </div>
+                    {selectedOrder.status !== "cancelled" ? (
+                      <button
+                        onClick={() => handleStatusChange(selectedOrder.id, "cancelled")}
+                        className="w-full py-1.5 rounded-lg text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors"
+                      >
+                        Cancel / Void Order
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleStatusChange(selectedOrder.id, "pending")}
+                        className="w-full py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors"
+                      >
+                        Reopen Order to Active
+                      </button>
+                    )}
                   </div>
                 ) : (
                   <div className="grid grid-cols-3 gap-2">
