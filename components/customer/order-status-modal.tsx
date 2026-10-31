@@ -3,7 +3,7 @@
 import React from "react";
 import { Order, Restaurant, OrderStatus } from "@/types/database";
 import { formatCurrency, formatTime } from "@/lib/utils";
-import { CheckCircle2, Clock, Utensils, Bell, Receipt, Check, X, Star } from "lucide-react";
+import { CheckCircle2, Clock, Utensils, Bell, Receipt, Check, X, Star, Sparkles } from "lucide-react";
 
 interface OrderStatusModalProps {
   order: Order | null;
@@ -36,6 +36,7 @@ export function OrderStatusModal({
 }: OrderStatusModalProps) {
   if (!isOpen || !order) return null;
 
+  const isSimpleMode = restaurant.order_tracking_enabled === false;
   const currentStepIndex = STATUS_STEPS.findIndex(s => s.status === order.status);
   const isCompleted = order.status === "completed" || order.status === "served";
   const isCancelled = order.status === "cancelled";
@@ -52,7 +53,9 @@ export function OrderStatusModal({
               ✓
             </div>
             <div>
-              <h2 className="font-extrabold text-slate-900 text-base">Order Tracking</h2>
+              <h2 className="font-extrabold text-slate-900 text-base">
+                {isSimpleMode ? "Order Confirmed" : "Order Tracking"}
+              </h2>
               <p className="text-xs text-slate-500">
                 Order {order.order_number} • {formatTime(order.created_at)}
               </p>
@@ -68,51 +71,81 @@ export function OrderStatusModal({
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto no-scrollbar p-5 space-y-6">
+        <div className="flex-1 overflow-y-auto no-scrollbar p-5 space-y-5">
           {/* Status Hero Card */}
-          <div className={`p-5 rounded-2xl border text-center transition-all ${
-            order.status === "ready"
-              ? "bg-amber-500/10 border-amber-300 ring-4 ring-amber-400/20"
-              : isCompleted
-              ? "bg-emerald-50 border-emerald-300"
-              : isCancelled
-              ? "bg-red-50 border-red-300"
-              : "bg-orange-50 border-orange-200"
-          }`}>
-            <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-white shadow-md mb-2">
-              {order.status === "ready" ? (
-                <Bell className="w-7 h-7 text-amber-600 animate-bounce" />
-              ) : isCompleted ? (
-                <CheckCircle2 className="w-7 h-7 text-emerald-600" />
-              ) : isCancelled ? (
-                <X className="w-7 h-7 text-red-600" />
-              ) : (
-                <Clock className="w-7 h-7 text-orange-600 animate-spin" />
-              )}
+          {isSimpleMode ? (
+            /* SIMPLIFIED CUSTOMER VIEW (5-step tracking removed) */
+            <div className="p-5 rounded-2xl border text-center transition-all bg-emerald-50/80 border-emerald-300 ring-2 ring-emerald-500/10 shadow-sm space-y-2">
+              <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-emerald-600 text-white shadow-md mb-1 animate-scale">
+                <Check className="w-8 h-8 stroke-[3]" />
+              </div>
+
+              <h3 className="text-xl font-black text-slate-900">
+                Order Placed Successfully!
+              </h3>
+
+              <div className="flex items-center justify-center gap-2 text-xs font-bold text-slate-600">
+                <span className="px-2.5 py-0.5 rounded-full bg-white border border-emerald-200 text-emerald-800">
+                  {order.table?.table_number || "Your Table"}
+                </span>
+                <span>•</span>
+                <span>Order #{order.order_number}</span>
+                <span>•</span>
+                <span className="capitalize text-slate-700">
+                  {order.payment_method === "bkash" ? "bKash Paid" : "Cash / In-Person"}
+                </span>
+              </div>
+
+              <p className="text-xs text-slate-600 max-w-sm mx-auto pt-1 leading-relaxed">
+                Thank you! Your order is confirmed and our team is preparing it. Your delicious meal will be served to your table shortly. Sit back and enjoy!
+              </p>
             </div>
-
-            <h3 className="text-xl font-extrabold text-slate-900">
-              {order.status === "ready"
-                ? "🔔 Your Order is Ready!"
-                : order.status === "preparing"
-                ? "Chef is Preparing Your Food"
-                : order.status === "accepted"
-                ? "Order Accepted by Kitchen"
+          ) : (
+            /* STANDARD 5-STEP TRACKING VIEW */
+            <div className={`p-5 rounded-2xl border text-center transition-all ${
+              order.status === "ready"
+                ? "bg-amber-500/10 border-amber-300 ring-4 ring-amber-400/20"
                 : isCompleted
-                ? "Order Completed & Served"
+                ? "bg-emerald-50 border-emerald-300"
                 : isCancelled
-                ? "Order Cancelled"
-                : "Order Received by Kitchen"}
-            </h3>
+                ? "bg-red-50 border-red-300"
+                : "bg-orange-50 border-orange-200"
+            }`}>
+              <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-white shadow-md mb-2">
+                {order.status === "ready" ? (
+                  <Bell className="w-7 h-7 text-amber-600 animate-bounce" />
+                ) : isCompleted ? (
+                  <CheckCircle2 className="w-7 h-7 text-emerald-600" />
+                ) : isCancelled ? (
+                  <X className="w-7 h-7 text-red-600" />
+                ) : (
+                  <Clock className="w-7 h-7 text-orange-600 animate-spin" />
+                )}
+              </div>
 
-            <p className="text-xs text-slate-600 mt-1">
-              Table: <strong>{order.table?.table_number || "Your Table"}</strong> • Est. Prep:{" "}
-              <strong>{order.estimated_prep_time || 15}–20 mins</strong>
-            </p>
-          </div>
+              <h3 className="text-xl font-extrabold text-slate-900">
+                {order.status === "ready"
+                  ? "🔔 Your Order is Ready!"
+                  : order.status === "preparing"
+                  ? "Chef is Preparing Your Food"
+                  : order.status === "accepted"
+                  ? "Order Accepted by Kitchen"
+                  : isCompleted
+                  ? "Order Completed & Served"
+                  : isCancelled
+                  ? "Order Cancelled"
+                  : "Order Received by Kitchen"}
+              </h3>
 
-          {/* Stepper Timeline */}
-          {!isCancelled && (
+              <p className="text-xs text-slate-600 mt-1">
+                Table: <strong>{order.table?.table_number || "Your Table"}</strong> • Est. Prep:{" "}
+                <strong>{order.estimated_prep_time || 15}–20 mins</strong>
+              </p>
+            </div>
+          )}
+
+          {/* Stepper Timeline (ONLY shown when 5-step tracking is enabled) */}
+          {!isSimpleMode && !isCancelled && (
             <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200">
               <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-4">
                 Real-time Status Progress
@@ -162,7 +195,7 @@ export function OrderStatusModal({
 
           {/* Items Summary */}
           {order.items && order.items.length > 0 && (
-            <div className="p-4 bg-white rounded-2xl border border-slate-200 space-y-3">
+            <div className="p-4 bg-white rounded-2xl border border-slate-200 space-y-3 shadow-sm">
               <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
                 Items in this Order
               </h4>
@@ -185,7 +218,7 @@ export function OrderStatusModal({
               </div>
 
               <div className="pt-3 border-t border-slate-200 flex justify-between items-center text-sm font-extrabold text-slate-900">
-                <span>Total</span>
+                <span>Total Amount</span>
                 <span className="text-orange-600">{formatCurrency(order.total, restaurant.currency)}</span>
               </div>
 
@@ -204,11 +237,11 @@ export function OrderStatusModal({
             </div>
           )}
 
-          {/* If completed, prompt for review */}
-          {isCompleted && (
+          {/* If completed or in simple mode, allow rating */}
+          {(isCompleted || isSimpleMode) && (
             <div className="p-4 bg-amber-50 border border-amber-300 rounded-2xl text-center">
-              <h4 className="font-extrabold text-amber-950 text-sm">How was your dining experience?</h4>
-              <p className="text-xs text-amber-800 mt-1">Leave a quick review for the chefs and service.</p>
+              <h4 className="font-extrabold text-amber-950 text-sm">How is your dining experience?</h4>
+              <p className="text-xs text-amber-800 mt-1">Leave a quick review for our food and staff.</p>
               <button
                 onClick={() => {
                   onClose();

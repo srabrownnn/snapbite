@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { AdminLayout } from "@/components/admin/admin-layout";
 import { SnapBiteStore } from "@/lib/store/demo-store";
 import { Restaurant } from "@/types/database";
-import { Building2, Save, CheckCircle2, RotateCcw, Wallet, Smartphone, ShieldCheck, Check, Copy } from "lucide-react";
+import { Building2, Save, CheckCircle2, RotateCcw, Wallet, Smartphone, ShieldCheck, Check, Copy, ListOrdered } from "lucide-react";
 
 export default function AdminSettingsPage() {
   const [restaurant, setRestaurant] = useState<Restaurant>(SnapBiteStore.getRestaurant());
@@ -34,6 +34,7 @@ export default function AdminSettingsPage() {
     bkashPassword: "",
     bkashPgwEnabled: true,
     cashEnabled: true,
+    orderTrackingEnabled: true,
   });
 
   useEffect(() => {
@@ -65,6 +66,7 @@ export default function AdminSettingsPage() {
       bkashPassword: current.bkash_password || "",
       bkashPgwEnabled: current.bkash_pgw_enabled !== false,
       cashEnabled: current.cash_enabled !== false,
+      orderTrackingEnabled: current.order_tracking_enabled !== false,
     });
   }, []);
 
@@ -95,6 +97,7 @@ export default function AdminSettingsPage() {
       bkash_password: form.bkashPassword.trim(),
       bkash_pgw_enabled: form.bkashPgwEnabled,
       cash_enabled: form.cashEnabled,
+      order_tracking_enabled: form.orderTrackingEnabled,
     });
 
     setRestaurant(updated);
@@ -296,6 +299,98 @@ export default function AdminSettingsPage() {
                   placeholder="11:30 PM"
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-orange-500/30 outline-none"
                 />
+              </div>
+            </div>
+          </div>
+
+          {/* Order Workflow & Status Tracking Simplification */}
+          <div className="space-y-4 pt-4 border-t border-slate-100">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+              <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                <ListOrdered className="w-4 h-4 text-orange-600" />
+                <span>Order Status Tracking & Workflow</span>
+              </h3>
+              <span className="text-[11px] font-bold text-slate-500">
+                Customer & Kitchen Experience
+              </span>
+            </div>
+
+            {/* Option Control Toggle */}
+            <div
+              onClick={() => setForm({ ...form, orderTrackingEnabled: !form.orderTrackingEnabled })}
+              className={`p-5 rounded-2xl border cursor-pointer transition-all ${
+                form.orderTrackingEnabled
+                  ? "bg-gradient-to-r from-orange-50/50 via-slate-50 to-amber-50/40 border-orange-300 ring-2 ring-orange-500/10"
+                  : "bg-gradient-to-r from-emerald-50/60 via-slate-50 to-teal-50/40 border-emerald-300 ring-2 ring-emerald-500/10 shadow-sm"
+              }`}
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div className="space-y-2 flex-1">
+                  <div className="flex items-center gap-2.5 flex-wrap">
+                    <span className="text-sm font-black text-slate-900">
+                      5-Step Order Status (Received, Accepted, Preparing, Ready, Served)
+                    </span>
+                    <span
+                      className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider ${
+                        form.orderTrackingEnabled
+                          ? "bg-orange-100 text-orange-800 border border-orange-200"
+                          : "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                      }`}
+                    >
+                      {form.orderTrackingEnabled ? "5 Stages Active" : "Simplified Mode (Turned OFF)"}
+                    </span>
+                  </div>
+
+                  <p className="text-xs text-slate-600 leading-relaxed">
+                    {form.orderTrackingEnabled ? (
+                      <>
+                        Orders progress through 5 distinct stages:{" "}
+                        <strong>Order Received ➔ Accepted ➔ Preparing ➔ Ready ➔ Served</strong>. Customers view a live stepper timeline, and the kitchen manages 5 Kanban columns.
+                      </>
+                    ) : (
+                      <>
+                        <strong>Simplified Interface Active:</strong> Removes Order Received, Accepted, Preparing, Ready, and Served. Diners receive a clean, instant confirmation with direct bill access, and the kitchen gets a streamlined 1-click completion screen.
+                      </>
+                    )}
+                  </p>
+
+                  {/* Visual Workflow Preview */}
+                  <div className="pt-1.5">
+                    {form.orderTrackingEnabled ? (
+                      <div className="flex items-center gap-1.5 flex-wrap text-[10px] font-bold text-slate-600 bg-white/80 p-2.5 rounded-xl border border-orange-200/80">
+                        <span className="px-2 py-1 rounded bg-amber-100 text-amber-800">1. Received</span>
+                        <span>➔</span>
+                        <span className="px-2 py-1 rounded bg-blue-100 text-blue-800">2. Accepted</span>
+                        <span>➔</span>
+                        <span className="px-2 py-1 rounded bg-orange-100 text-orange-800">3. Preparing</span>
+                        <span>➔</span>
+                        <span className="px-2 py-1 rounded bg-emerald-100 text-emerald-800">4. Ready</span>
+                        <span>➔</span>
+                        <span className="px-2 py-1 rounded bg-purple-100 text-purple-800">5. Served</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 text-[11px] font-bold text-emerald-900 bg-emerald-100/60 p-2.5 rounded-xl border border-emerald-200">
+                        <Check className="w-4 h-4 text-emerald-600 shrink-0 stroke-[3]" />
+                        <span>Simple Customer Confirmation & 1-Click Kitchen Done Fulfillment</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Switch Toggle Button */}
+                <div className="shrink-0 pt-1">
+                  <div
+                    className={`w-12 h-6 rounded-full transition-colors relative p-0.5 ${
+                      form.orderTrackingEnabled ? "bg-orange-600" : "bg-slate-300"
+                    }`}
+                  >
+                    <div
+                      className={`w-5 h-5 rounded-full bg-white shadow-md transform transition-transform ${
+                        form.orderTrackingEnabled ? "translate-x-6" : "translate-x-0"
+                      }`}
+                    />
+                  </div>
+                </div>
               </div>
             </div>
           </div>

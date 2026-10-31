@@ -490,26 +490,59 @@ export default function AdminOrdersPage() {
 
               {/* Status Update Actions */}
               <div className="space-y-2 pt-2 border-t border-slate-100">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                  Update Order Status
-                </h4>
-                <div className="grid grid-cols-3 gap-2">
-                  {(["pending", "accepted", "preparing", "ready", "served", "completed"] as OrderStatus[]).map(
-                    (st) => (
-                      <button
-                        key={st}
-                        onClick={() => handleStatusChange(selectedOrder.id, st)}
-                        className={`py-2 rounded-xl text-xs font-bold uppercase transition-all ${
-                          selectedOrder.status === st
-                            ? "bg-orange-600 text-white shadow-md"
-                            : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                        }`}
-                      >
-                        {st}
-                      </button>
-                    )
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                    Update Order Status
+                  </h4>
+                  {restaurant.order_tracking_enabled === false && (
+                    <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full">
+                      Simple Mode Active
+                    </span>
                   )}
                 </div>
+
+                {restaurant.order_tracking_enabled === false ? (
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => handleStatusChange(selectedOrder.id, "pending")}
+                      className={`py-2.5 rounded-xl text-xs font-bold transition-all ${
+                        selectedOrder.status !== "completed" && selectedOrder.status !== "served" && selectedOrder.status !== "cancelled"
+                          ? "bg-orange-600 text-white shadow-md"
+                          : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                      }`}
+                    >
+                      Active in Kitchen
+                    </button>
+                    <button
+                      onClick={() => handleStatusChange(selectedOrder.id, "completed")}
+                      className={`py-2.5 rounded-xl text-xs font-bold transition-all ${
+                        selectedOrder.status === "completed" || selectedOrder.status === "served"
+                          ? "bg-emerald-600 text-white shadow-md"
+                          : "bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-200"
+                      }`}
+                    >
+                      Mark Completed ✓
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-3 gap-2">
+                    {(["pending", "accepted", "preparing", "ready", "served", "completed"] as OrderStatus[]).map(
+                      (st) => (
+                        <button
+                          key={st}
+                          onClick={() => handleStatusChange(selectedOrder.id, st)}
+                          className={`py-2 rounded-xl text-xs font-bold uppercase transition-all ${
+                            selectedOrder.status === st
+                              ? "bg-orange-600 text-white shadow-md"
+                              : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                          }`}
+                        >
+                          {st}
+                        </button>
+                      )
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Payment Status Action */}

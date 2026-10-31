@@ -36,6 +36,7 @@ export const INITIAL_RESTAURANT: Restaurant = {
   bkash_pgw_enabled: true,
   bkash_merchant_number: "01712345678",
   cash_enabled: true,
+  order_tracking_enabled: true,
   created_at: new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString(),
   updated_at: new Date().toISOString(),
 };

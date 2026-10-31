@@ -588,6 +588,7 @@ export class ServerStore {
       bkash_mode: "sandbox",
       bkash_pgw_enabled: true,
       cash_enabled: true,
+      order_tracking_enabled: true,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };

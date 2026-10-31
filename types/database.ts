@@ -48,6 +48,7 @@ export interface Restaurant {
   bkash_merchant_number?: string | null;
   bkash_pgw_enabled?: boolean;
   cash_enabled?: boolean;
+  order_tracking_enabled?: boolean; // When false, turns off 5-step status (Order Received, Accepted, Preparing, Ready, Served) for simpler customer & kitchen UI
   created_at: string;
   updated_at: string;
 }

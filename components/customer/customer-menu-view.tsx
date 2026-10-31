@@ -104,7 +104,8 @@ export function CustomerMenuView({ initialRestaurant, table }: CustomerMenuViewP
     const handleOrderStatusChange = (e: Event) => {
       const customEvent = e as CustomEvent<{ orderId: string; status: string; order: Order }>;
       refreshData();
-      if (customEvent.detail && customEvent.detail.order.table_id === table.id) {
+      const currentRest = SnapBiteStore.getRestaurant(initialRestaurant.id);
+      if (currentRest.order_tracking_enabled !== false && customEvent.detail && customEvent.detail.order.table_id === table.id) {
         if (customEvent.detail.status === "ready") {
           playOrderReadySound();
           setReadyNotificationOrder(customEvent.detail.order);
@@ -125,7 +126,8 @@ export function CustomerMenuView({ initialRestaurant, table }: CustomerMenuViewP
             const data = await res.json();
             if (data.order && data.order.status !== trackedOrder.status) {
               setTrackedOrder(data.order);
-              if (data.order.status === "ready") {
+              const currentRest = SnapBiteStore.getRestaurant(initialRestaurant.id);
+              if (currentRest.order_tracking_enabled !== false && data.order.status === "ready") {
                 playOrderReadySound();
                 setReadyNotificationOrder(data.order);
               }
@@ -369,9 +371,15 @@ export function CustomerMenuView({ initialRestaurant, table }: CustomerMenuViewP
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0"></span>
               <span className="truncate">Order #{activeOrders[0].order_number}</span>
             </div>
-            <span className="capitalize font-black text-orange-400 shrink-0 text-[11px] ml-1">
-              {activeOrders[0].status} →
-            </span>
+            {restaurant.order_tracking_enabled === false ? (
+              <span className="font-extrabold text-emerald-400 shrink-0 text-[11px] ml-1 flex items-center gap-1">
+                Placed ✓
+              </span>
+            ) : (
+              <span className="capitalize font-black text-orange-400 shrink-0 text-[11px] ml-1">
+                {activeOrders[0].status} →
+              </span>
+            )}
           </button>
         )}
       </div>

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
-import { Order, OrderStatus } from "@/types/database";
+import { Order, OrderStatus, Restaurant } from "@/types/database";
 import { SnapBiteStore } from "@/lib/store/demo-store";
 import { formatTime, getMinutesAgo } from "@/lib/utils";
 import { playNewKitchenOrderSound } from "@/lib/audio";
@@ -24,6 +24,9 @@ import {
   Filter,
   Printer,
   Loader2,
+  Sparkles,
+  RotateCcw,
+  Sliders,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -38,7 +41,7 @@ const COLUMNS: { status: OrderStatus; title: string; color: string; badgeColor: 
 function KitchenDashboardInner() {
   const searchParams = useSearchParams();
   const restParam = searchParams.get("restaurant") || searchParams.get("slug") || searchParams.get("restaurantId") || undefined;
-  const restaurant = SnapBiteStore.getRestaurant(restParam);
+  const [restaurant, setRestaurant] = useState<Restaurant>(SnapBiteStore.getRestaurant(restParam));
   const [orders, setOrders] = useState<Order[]>([]);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [autoPrintEnabled, setAutoPrintEnabled] = useState(false);
@@ -46,6 +49,8 @@ function KitchenDashboardInner() {
   const [lastOrderCount, setLastOrderCount] = useState(0);
   const [currentTime, setCurrentTime] = useState(Date.now());
   const [selectedTableFilter, setSelectedTableFilter] = useState<string>("all");
+
+  const isSimpleMode = restaurant.order_tracking_enabled === false;
 
   const soundRef = useRef(soundEnabled);
   soundRef.current = soundEnabled;
@@ -74,7 +79,9 @@ function KitchenDashboardInner() {
   };
 
   const loadOrders = () => {
-    const list = SnapBiteStore.getOrders(restaurant.id);
+    const freshRest = SnapBiteStore.getRestaurant(restParam);
+    setRestaurant(freshRest);
+    const list = SnapBiteStore.getOrders(freshRest.id);
     setOrders(list);
     return list;
   };
@@ -97,7 +104,9 @@ function KitchenDashboardInner() {
 
     // Order update listener
     const handleUpdate = () => {
-      const updated = SnapBiteStore.getOrders(restaurant.id);
+      const freshRest = SnapBiteStore.getRestaurant(restParam);
+      setRestaurant(freshRest);
+      const updated = SnapBiteStore.getOrders(freshRest.id);
       if (updated.length > lastOrderCount) {
         if (soundRef.current) playNewKitchenOrderSound();
         checkAndAutoPrint(updated);
@@ -132,9 +141,9 @@ function KitchenDashboardInner() {
       clearInterval(timerInterval);
       clearInterval(cloudSyncInterval);
     };
-  }, [restaurant.id, lastOrderCount]);
+  }, [restaurant.id, lastOrderCount, restParam]);
 
-  // Transition handler
+  // Transition handler for 5-stage tracking
   const handleAdvanceStatus = (orderId: string, currentStatus: OrderStatus) => {
     let nextStatus: OrderStatus = currentStatus;
     if (currentStatus === "pending") nextStatus = "accepted";
@@ -147,11 +156,33 @@ function KitchenDashboardInner() {
     loadOrders();
   };
 
+  // Direct 1-click completion for Simple Mode
+  const handleCompleteOrder = (orderId: string) => {
+    SnapBiteStore.updateOrderStatus(orderId, "completed");
+    loadOrders();
+  };
+
+  // Re-open ticket
+  const handleReopenOrder = (orderId: string) => {
+    SnapBiteStore.updateOrderStatus(orderId, "pending");
+    loadOrders();
+  };
+
   const handleCancelOrder = (orderId: string) => {
     if (confirm("Are you sure you want to cancel this order?")) {
       SnapBiteStore.updateOrderStatus(orderId, "cancelled");
       loadOrders();
     }
+  };
+
+  // Quick toggle mode from KDS
+  const handleToggleTrackingMode = () => {
+    const next = isSimpleMode ? true : false;
+    SnapBiteStore.updateRestaurant({
+      id: restaurant.id,
+      order_tracking_enabled: next,
+    });
+    setRestaurant({ ...restaurant, order_tracking_enabled: next });
   };
 
   const toggleFullscreen = () => {
@@ -168,11 +199,228 @@ function KitchenDashboardInner() {
   const tableNumbers = Array.from(new Set(orders.map((o) => o.table?.table_number).filter(Boolean)));
 
   // Active orders filtered
-  const activeOrders = orders.filter((o) => !["completed", "cancelled"].includes(o.status));
+  const activeOrders = orders.filter((o) => !["completed", "served", "cancelled"].includes(o.status));
+  const completedOrders = orders.filter((o) => ["completed", "served"].includes(o.status));
+
   const filteredActiveOrders = activeOrders.filter((o) => {
     if (selectedTableFilter === "all") return true;
     return o.table?.table_number === selectedTableFilter;
   });
+
+  const filteredCompletedOrders = completedOrders.filter((o) => {
+    if (selectedTableFilter === "all") return true;
+    return o.table?.table_number === selectedTableFilter;
+  });
+
+  // Render an individual ticket card
+  const renderTicketCard = (order: Order, isCompletedColumn: boolean = false) => {
+    const minutesAgo = getMinutesAgo(order.created_at);
+    const isUrgent = minutesAgo > 15;
+    const isCritical = minutesAgo > 25;
+
+    return (
+      <div
+        key={order.id}
+        className={`rounded-2xl p-4 bg-slate-900 border transition-all shadow-md flex flex-col justify-between ${
+          isCompletedColumn
+            ? "border-slate-800 opacity-80"
+            : isCritical
+            ? "border-red-500 ring-2 ring-red-500/20"
+            : isUrgent
+            ? "border-orange-500/60"
+            : "border-slate-800"
+        }`}
+      >
+        <div>
+          {/* Ticket Header */}
+          <div className="flex items-start justify-between gap-2 border-b border-slate-800 pb-2.5 mb-2.5">
+            <div>
+              <div className="text-xl font-black text-white tracking-tight flex items-center gap-2">
+                <span>{order.table?.table_number || "Table N/A"}</span>
+                <span className="text-sm font-bold text-orange-400">
+                  {order.order_number}
+                </span>
+              </div>
+              {order.customer_name && (
+                <div className="text-xs text-slate-400 font-medium">
+                  Guest: {order.customer_name}
+                </div>
+              )}
+              <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                {order.payment_method === "bkash" ? (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-black bg-[#E2136E]/20 text-pink-400 border border-[#E2136E]/40 font-mono">
+                    <span>bKash</span>
+                    {order.bkash_trx_id && <span>• Trx: {order.bkash_trx_id}</span>}
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-800 text-slate-300 border border-slate-700">
+                    Cash / In-Person
+                  </span>
+                )}
+                <span
+                  className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded ${
+                    order.payment_status === "paid"
+                      ? "bg-emerald-500/20 text-emerald-400"
+                      : "bg-amber-500/20 text-amber-400"
+                  }`}
+                >
+                  {order.payment_status}
+                </span>
+              </div>
+            </div>
+
+            {/* Ticket Header Actions: Print Receipt & Urgency Timer */}
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                onClick={() => printThermalReceipt(order, restaurant)}
+                className="p-1.5 rounded-lg bg-slate-800 hover:bg-orange-600 text-slate-300 hover:text-white transition-all border border-slate-700/80 active:scale-95"
+                title="Print Bill Receipt / Kitchen Ticket"
+              >
+                <Printer className="w-3.5 h-3.5" />
+              </button>
+
+              <div
+                className={`px-2 py-1 rounded-lg text-xs font-black flex items-center gap-1 ${
+                  isCritical
+                    ? "bg-red-500/20 text-red-400 border border-red-500/40"
+                    : isUrgent
+                    ? "bg-amber-500/20 text-amber-400 border border-amber-500/40"
+                    : "bg-slate-800 text-slate-300"
+                }`}
+              >
+                <Clock className="w-3.5 h-3.5" />
+                <span>{minutesAgo}m ago</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Customer Kitchen Note */}
+          {order.customer_note && (
+            <div className="mb-3 p-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-semibold">
+              ⚠️ Note: “{order.customer_note}”
+            </div>
+          )}
+
+          {/* Order Items List */}
+          <div className="space-y-2 mb-4">
+            {order.items?.map((item) => (
+              <div key={item.id} className="text-xs bg-slate-950/60 p-2 rounded-xl border border-slate-800/80">
+                <div className="flex items-start justify-between font-bold text-slate-200">
+                  <span className="text-orange-400 text-sm font-black mr-2">
+                    {item.quantity}x
+                  </span>
+                  <span className="flex-1 text-sm">{item.item_name_snapshot}</span>
+                </div>
+
+                {/* Add-ons */}
+                {item.addons && item.addons.length > 0 && (
+                  <div className="pl-6 mt-1 space-y-0.5 text-slate-400 text-[11px]">
+                    {item.addons.map((ad, idx) => (
+                      <div key={idx} className="flex items-center gap-1">
+                        <span className="text-orange-400">+</span>
+                        <span>{ad.addon_name_snapshot}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Item specific note */}
+                {item.customer_note && (
+                  <div className="pl-6 mt-1 text-[11px] text-amber-400/90 italic">
+                    “{item.customer_note}”
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="pt-2 border-t border-slate-800 flex items-center gap-2">
+          {isCompletedColumn ? (
+            <button
+              onClick={() => handleReopenOrder(order.id)}
+              className="w-full py-2.5 px-4 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs rounded-xl flex items-center justify-center gap-2 transition-all"
+            >
+              <RotateCcw className="w-4 h-4" />
+              <span>Reopen Ticket</span>
+            </button>
+          ) : isSimpleMode ? (
+            /* 1-CLICK FULFILLMENT IN SIMPLE MODE */
+            <>
+              <button
+                onClick={() => handleCompleteOrder(order.id)}
+                className="flex-1 py-3 px-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-sm rounded-xl shadow-lg shadow-emerald-600/30 flex items-center justify-center gap-2 active:scale-95 transition-all"
+              >
+                <Check className="w-5 h-5 stroke-[3]" />
+                <span>MARK AS COMPLETED ✓</span>
+              </button>
+              <button
+                onClick={() => handleCancelOrder(order.id)}
+                className="p-3 bg-red-950/60 hover:bg-red-900 border border-red-800 text-red-300 rounded-xl transition-all"
+                title="Reject/Cancel"
+              >
+                <XCircle className="w-5 h-5" />
+              </button>
+            </>
+          ) : (
+            /* 5-STAGE ADVANCE BUTTONS */
+            <>
+              {order.status === "pending" ? (
+                <>
+                  <button
+                    onClick={() => handleAdvanceStatus(order.id, order.status)}
+                    className="flex-1 py-3 px-4 bg-orange-600 hover:bg-orange-500 text-white font-black text-sm rounded-xl shadow-lg shadow-orange-600/30 flex items-center justify-center gap-2 active:scale-95 transition-all"
+                  >
+                    <Check className="w-5 h-5 stroke-[3]" />
+                    <span>ACCEPT ORDER</span>
+                  </button>
+                  <button
+                    onClick={() => handleCancelOrder(order.id)}
+                    className="p-3 bg-red-950/60 hover:bg-red-900 border border-red-800 text-red-300 rounded-xl transition-all"
+                    title="Reject/Cancel"
+                  >
+                    <XCircle className="w-5 h-5" />
+                  </button>
+                </>
+              ) : order.status === "accepted" ? (
+                <button
+                  onClick={() => handleAdvanceStatus(order.id, order.status)}
+                  className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-500 text-white font-black text-sm rounded-xl shadow-md flex items-center justify-center gap-2 active:scale-95 transition-all"
+                >
+                  <Flame className="w-5 h-5" />
+                  <span>START PREPARING</span>
+                </button>
+              ) : order.status === "preparing" ? (
+                <button
+                  onClick={() => handleAdvanceStatus(order.id, order.status)}
+                  className="w-full py-3 px-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-sm rounded-xl shadow-lg shadow-emerald-600/30 flex items-center justify-center gap-2 active:scale-95 transition-all"
+                >
+                  <Bell className="w-5 h-5" />
+                  <span>MARK AS READY 🔔</span>
+                </button>
+              ) : order.status === "ready" ? (
+                <button
+                  onClick={() => handleAdvanceStatus(order.id, order.status)}
+                  className="w-full py-3 px-4 bg-purple-600 hover:bg-purple-500 text-white font-black text-sm rounded-xl shadow-md flex items-center justify-center gap-2 active:scale-95 transition-all"
+                >
+                  <Check className="w-5 h-5 stroke-[3]" />
+                  <span>MARK AS SERVED</span>
+                </button>
+              ) : (
+                <button
+                  onClick={() => handleAdvanceStatus(order.id, order.status)}
+                  className="w-full py-3 px-4 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-sm rounded-xl shadow-md flex items-center justify-center gap-2 active:scale-95 transition-all"
+                >
+                  <span>COMPLETE TICKET</span>
+                </button>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col select-none">
@@ -190,6 +438,20 @@ function KitchenDashboardInner() {
               <span className="px-2 py-0.5 rounded bg-orange-500/20 text-orange-400 text-xs font-bold border border-orange-500/30">
                 Kitchen Display
               </span>
+
+              {/* Mode indicator badge */}
+              <button
+                onClick={handleToggleTrackingMode}
+                title="Click to toggle between Simplified 1-Click Mode and 5-Stage Tracking"
+                className={`px-2 py-0.5 rounded text-[10px] font-extrabold uppercase tracking-wider flex items-center gap-1 border transition-all ${
+                  isSimpleMode
+                    ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/30"
+                    : "bg-amber-500/20 text-amber-400 border-amber-500/30 hover:bg-amber-500/30"
+                }`}
+              >
+                <Sparkles className="w-3 h-3" />
+                <span>{isSimpleMode ? "Simple 1-Click Mode" : "5-Stage Tracking"}</span>
+              </button>
             </div>
             <p className="text-xs text-slate-400">{restaurant.name}</p>
           </div>
@@ -200,6 +462,11 @@ function KitchenDashboardInner() {
           <div className="bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-xl flex items-center gap-2">
             <span className="text-slate-400">Active Tickets:</span>
             <span className="font-extrabold text-orange-400 text-sm">{activeOrders.length}</span>
+          </div>
+
+          <div className="bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-xl flex items-center gap-2">
+            <span className="text-slate-400">Completed:</span>
+            <span className="font-extrabold text-emerald-400 text-sm">{completedOrders.length}</span>
           </div>
 
           {/* Table filter */}
@@ -280,229 +547,124 @@ function KitchenDashboardInner() {
 
           {/* Back to Admin */}
           <Link
-            href="/admin"
+            href="/admin/settings"
             className="text-xs font-bold text-slate-400 hover:text-white px-2.5 py-1.5 rounded-xl hover:bg-slate-800 transition-colors"
           >
-            Admin Panel →
+            Settings →
           </Link>
         </div>
       </header>
 
-      {/* Kanban Board Container */}
-      <main className="flex-1 p-4 overflow-x-auto no-scrollbar">
-        <div className="flex gap-4 min-w-[1280px] h-[calc(100vh-80px)]">
-          {COLUMNS.map((col) => {
-            const columnOrders = filteredActiveOrders.filter((o) => o.status === col.status);
+      {/* Main Kitchen Display */}
+      {isSimpleMode ? (
+        /* ============================================================== */
+        /* SIMPLIFIED 2-COLUMN VIEW (Received/Accepted/Preparing/Ready/Served REMOVED) */
+        /* ============================================================== */
+        <main className="flex-1 p-4 overflow-x-auto no-scrollbar">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 h-[calc(100vh-80px)]">
+            {/* Active Orders Column */}
+            <div className="flex flex-col rounded-2xl bg-slate-950/80 border border-orange-500/30 overflow-hidden shadow-xl ring-1 ring-orange-500/10">
+              <div className="p-3.5 border-b border-slate-800 flex items-center justify-between bg-slate-900/90">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-orange-500 animate-pulse"></span>
+                  <span className="font-black text-sm tracking-wide text-white">
+                    ACTIVE KITCHEN ORDERS
+                  </span>
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-orange-600 text-white">
+                    {filteredActiveOrders.length}
+                  </span>
+                </div>
+                <span className="text-[11px] text-slate-400 font-semibold">
+                  1-Click "Completed" to finish
+                </span>
+              </div>
 
-            return (
-              <div
-                key={col.status}
-                className="flex-1 flex flex-col rounded-2xl bg-slate-950/80 border border-slate-800 overflow-hidden shadow-lg"
-              >
-                {/* Column Header */}
-                <div className="p-3.5 border-b border-slate-800 flex items-center justify-between bg-slate-900/90">
-                  <div className="flex items-center gap-2">
-                    <span className="font-black text-sm tracking-wide text-slate-200">
-                      {col.title}
-                    </span>
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-extrabold ${col.badgeColor}`}>
-                      {columnOrders.length}
-                    </span>
+              <div className="flex-1 p-3 overflow-y-auto space-y-3 no-scrollbar">
+                {filteredActiveOrders.length === 0 ? (
+                  <div className="h-full flex flex-col items-center justify-center text-center p-6 text-slate-600">
+                    <UtensilsCrossed className="w-12 h-12 mb-3 stroke-[1.5] text-slate-700" />
+                    <p className="text-sm font-bold text-slate-400">All caught up!</p>
+                    <p className="text-xs text-slate-600 mt-1">No active tickets waiting in kitchen</p>
+                  </div>
+                ) : (
+                  filteredActiveOrders.map((order) => renderTicketCard(order, false))
+                )}
+              </div>
+            </div>
+
+            {/* Completed Orders Column */}
+            <div className="flex flex-col rounded-2xl bg-slate-950/80 border border-slate-800 overflow-hidden shadow-lg">
+              <div className="p-3.5 border-b border-slate-800 flex items-center justify-between bg-slate-900/90">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                  <span className="font-black text-sm tracking-wide text-slate-200">
+                    COMPLETED ORDERS
+                  </span>
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-emerald-700 text-white">
+                    {filteredCompletedOrders.length}
+                  </span>
+                </div>
+                <span className="text-[11px] text-slate-500 font-semibold">
+                  Fulfilled & Served
+                </span>
+              </div>
+
+              <div className="flex-1 p-3 overflow-y-auto space-y-3 no-scrollbar">
+                {filteredCompletedOrders.length === 0 ? (
+                  <div className="h-full flex flex-col items-center justify-center text-center p-6 text-slate-600">
+                    <Check className="w-12 h-12 mb-3 stroke-[1.5] text-slate-700" />
+                    <p className="text-xs font-semibold">No completed tickets yet today</p>
+                  </div>
+                ) : (
+                  filteredCompletedOrders.map((order) => renderTicketCard(order, true))
+                )}
+              </div>
+            </div>
+          </div>
+        </main>
+      ) : (
+        /* ============================================================== */
+        /* STANDARD 5-STAGE KANBAN BOARD */
+        /* ============================================================== */
+        <main className="flex-1 p-4 overflow-x-auto no-scrollbar">
+          <div className="flex gap-4 min-w-[1280px] h-[calc(100vh-80px)]">
+            {COLUMNS.map((col) => {
+              const columnOrders = filteredActiveOrders.filter((o) => o.status === col.status);
+
+              return (
+                <div
+                  key={col.status}
+                  className="flex-1 flex flex-col rounded-2xl bg-slate-950/80 border border-slate-800 overflow-hidden shadow-lg"
+                >
+                  {/* Column Header */}
+                  <div className="p-3.5 border-b border-slate-800 flex items-center justify-between bg-slate-900/90">
+                    <div className="flex items-center gap-2">
+                      <span className="font-black text-sm tracking-wide text-slate-200">
+                        {col.title}
+                      </span>
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-extrabold ${col.badgeColor}`}>
+                        {columnOrders.length}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Tickets Scroll Container */}
+                  <div className="flex-1 p-3 overflow-y-auto space-y-3 no-scrollbar">
+                    {columnOrders.length === 0 ? (
+                      <div className="h-full flex flex-col items-center justify-center text-center p-6 text-slate-600">
+                        <UtensilsCrossed className="w-8 h-8 mb-2 stroke-[1.5]" />
+                        <p className="text-xs font-semibold">No tickets in this stage</p>
+                      </div>
+                    ) : (
+                      columnOrders.map((order) => renderTicketCard(order, false))
+                    )}
                   </div>
                 </div>
-
-                {/* Tickets Scroll Container */}
-                <div className="flex-1 p-3 overflow-y-auto space-y-3 no-scrollbar">
-                  {columnOrders.length === 0 ? (
-                    <div className="h-full flex flex-col items-center justify-center text-center p-6 text-slate-600">
-                      <UtensilsCrossed className="w-8 h-8 mb-2 stroke-[1.5]" />
-                      <p className="text-xs font-semibold">No tickets in this stage</p>
-                    </div>
-                  ) : (
-                    columnOrders.map((order) => {
-                      const minutesAgo = getMinutesAgo(order.created_at);
-                      const isUrgent = minutesAgo > 15;
-                      const isCritical = minutesAgo > 25;
-
-                      return (
-                        <div
-                          key={order.id}
-                          className={`rounded-2xl p-4 bg-slate-900 border transition-all shadow-md flex flex-col justify-between ${
-                            col.status === "pending"
-                              ? "border-amber-500/60 ring-2 ring-amber-500/20 animate-pulse-subtle"
-                              : isCritical
-                              ? "border-red-500 ring-2 ring-red-500/20"
-                              : isUrgent
-                              ? "border-orange-500/60"
-                              : "border-slate-800"
-                          }`}
-                        >
-                          <div>
-                            {/* Ticket Header */}
-                            <div className="flex items-start justify-between gap-2 border-b border-slate-800 pb-2.5 mb-2.5">
-                              <div>
-                                <div className="text-xl font-black text-white tracking-tight flex items-center gap-2">
-                                  <span>{order.table?.table_number || "Table N/A"}</span>
-                                  <span className="text-sm font-bold text-orange-400">
-                                    {order.order_number}
-                                  </span>
-                                </div>
-                                {order.customer_name && (
-                                  <div className="text-xs text-slate-400 font-medium">
-                                    Guest: {order.customer_name}
-                                  </div>
-                                )}
-                                <div className="flex items-center gap-1.5 mt-1">
-                                  {order.payment_method === "bkash" ? (
-                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-black bg-[#E2136E]/20 text-pink-400 border border-[#E2136E]/40 font-mono">
-                                      <span>bKash</span>
-                                      {order.bkash_trx_id && <span>• Trx: {order.bkash_trx_id}</span>}
-                                    </span>
-                                  ) : (
-                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-800 text-slate-300 border border-slate-700">
-                                      Cash / In-Person
-                                    </span>
-                                  )}
-                                  <span
-                                    className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded ${
-                                      order.payment_status === "paid"
-                                        ? "bg-emerald-500/20 text-emerald-400"
-                                        : "bg-amber-500/20 text-amber-400"
-                                    }`}
-                                  >
-                                    {order.payment_status}
-                                  </span>
-                                </div>
-                              </div>
-
-                              {/* Ticket Header Actions: Print Receipt & Urgency Timer */}
-                              <div className="flex items-center gap-1.5 shrink-0">
-                                <button
-                                  onClick={() => printThermalReceipt(order, restaurant)}
-                                  className="p-1.5 rounded-lg bg-slate-800 hover:bg-orange-600 text-slate-300 hover:text-white transition-all border border-slate-700/80 active:scale-95"
-                                  title="Print Bill Receipt / Kitchen Ticket"
-                                >
-                                  <Printer className="w-3.5 h-3.5" />
-                                </button>
-
-                                <div
-                                  className={`px-2 py-1 rounded-lg text-xs font-black flex items-center gap-1 ${
-                                    isCritical
-                                      ? "bg-red-500/20 text-red-400 border border-red-500/40"
-                                      : isUrgent
-                                      ? "bg-amber-500/20 text-amber-400 border border-amber-500/40"
-                                      : "bg-slate-800 text-slate-300"
-                                  }`}
-                                >
-                                  <Clock className="w-3.5 h-3.5" />
-                                  <span>{minutesAgo}m ago</span>
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Customer Kitchen Note */}
-                            {order.customer_note && (
-                              <div className="mb-3 p-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-semibold">
-                                ⚠️ Note: “{order.customer_note}”
-                              </div>
-                            )}
-
-                            {/* Order Items List */}
-                            <div className="space-y-2 mb-4">
-                              {order.items?.map((item) => (
-                                <div key={item.id} className="text-xs bg-slate-950/60 p-2 rounded-xl border border-slate-800/80">
-                                  <div className="flex items-start justify-between font-bold text-slate-200">
-                                    <span className="text-orange-400 text-sm font-black mr-2">
-                                      {item.quantity}x
-                                    </span>
-                                    <span className="flex-1 text-sm">{item.item_name_snapshot}</span>
-                                  </div>
-
-                                  {/* Add-ons */}
-                                  {item.addons && item.addons.length > 0 && (
-                                    <div className="pl-6 mt-1 space-y-0.5 text-slate-400 text-[11px]">
-                                      {item.addons.map((ad, idx) => (
-                                        <div key={idx} className="flex items-center gap-1">
-                                          <span className="text-orange-400">+</span>
-                                          <span>{ad.addon_name_snapshot}</span>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  )}
-
-                                  {/* Item specific note */}
-                                  {item.customer_note && (
-                                    <div className="pl-6 mt-1 text-[11px] text-amber-400/90 italic">
-                                      “{item.customer_note}”
-                                    </div>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-
-                          {/* Action Buttons */}
-                          <div className="pt-2 border-t border-slate-800 flex items-center gap-2">
-                            {col.status === "pending" ? (
-                              <>
-                                <button
-                                  onClick={() => handleAdvanceStatus(order.id, order.status)}
-                                  className="flex-1 py-3 px-4 bg-orange-600 hover:bg-orange-500 text-white font-black text-sm rounded-xl shadow-lg shadow-orange-600/30 flex items-center justify-center gap-2 active:scale-95 transition-all"
-                                >
-                                  <Check className="w-5 h-5 stroke-[3]" />
-                                  <span>ACCEPT ORDER</span>
-                                </button>
-                                <button
-                                  onClick={() => handleCancelOrder(order.id)}
-                                  className="p-3 bg-red-950/60 hover:bg-red-900 border border-red-800 text-red-300 rounded-xl transition-all"
-                                  title="Reject/Cancel"
-                                >
-                                  <XCircle className="w-5 h-5" />
-                                </button>
-                              </>
-                            ) : col.status === "accepted" ? (
-                              <button
-                                onClick={() => handleAdvanceStatus(order.id, order.status)}
-                                className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-500 text-white font-black text-sm rounded-xl shadow-md flex items-center justify-center gap-2 active:scale-95 transition-all"
-                              >
-                                <Flame className="w-5 h-5" />
-                                <span>START PREPARING</span>
-                              </button>
-                            ) : col.status === "preparing" ? (
-                              <button
-                                onClick={() => handleAdvanceStatus(order.id, order.status)}
-                                className="w-full py-3 px-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-sm rounded-xl shadow-lg shadow-emerald-600/30 flex items-center justify-center gap-2 active:scale-95 transition-all"
-                              >
-                                <Bell className="w-5 h-5" />
-                                <span>MARK AS READY 🔔</span>
-                              </button>
-                            ) : col.status === "ready" ? (
-                              <button
-                                onClick={() => handleAdvanceStatus(order.id, order.status)}
-                                className="w-full py-3 px-4 bg-purple-600 hover:bg-purple-500 text-white font-black text-sm rounded-xl shadow-md flex items-center justify-center gap-2 active:scale-95 transition-all"
-                              >
-                                <Check className="w-5 h-5 stroke-[3]" />
-                                <span>MARK AS SERVED</span>
-                              </button>
-                            ) : (
-                              <button
-                                onClick={() => handleAdvanceStatus(order.id, order.status)}
-                                className="w-full py-3 px-4 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-sm rounded-xl shadow-md flex items-center justify-center gap-2 active:scale-95 transition-all"
-                              >
-                                <span>COMPLETE TICKET</span>
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </main>
+              );
+            })}
+          </div>
+        </main>
+      )}
     </div>
   );
 }
