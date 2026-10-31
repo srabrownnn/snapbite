@@ -106,7 +106,6 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     },
     { href: "/admin/reviews", label: "Guest Reviews", icon: Star },
     { href: "/admin/settings", label: "Restaurant Settings", icon: Settings },
-    { href: "/super-admin", label: "SaaS Super Admin", icon: ShieldCheck },
   ];
 
   const firstTable = SnapBiteStore.getTables(restaurant.id)[0];

@@ -16,25 +16,83 @@ import {
   ArrowRight,
   X,
   ExternalLink,
+  Lock,
+  KeyRound,
+  Loader2,
+  LogOut,
+  AlertCircle,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import Link from "next/link";
 
 export default function SuperAdminPage() {
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const [securityKey, setSecurityKey] = useState("");
+  const [showKey, setShowKey] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [authError, setAuthError] = useState("");
+
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [newRestName, setNewRestName] = useState("");
   const [newRestSlug, setNewRestSlug] = useState("");
   const [newRestCurrency, setNewRestCurrency] = useState("৳");
 
+  // Check super-admin session on mount
+  useEffect(() => {
+    fetch("/api/auth/super-admin")
+      .then((res) => res.json())
+      .then((data) => {
+        setIsAuthenticated(Boolean(data.authenticated));
+      })
+      .catch(() => {
+        setIsAuthenticated(false);
+      });
+  }, []);
+
   const loadData = () => {
     setRestaurants(SnapBiteStore.getAllRestaurants());
   };
 
   useEffect(() => {
-    loadData();
-    window.addEventListener("snapbite_store_updated", loadData);
-    return () => window.removeEventListener("snapbite_store_updated", loadData);
-  }, []);
+    if (isAuthenticated) {
+      loadData();
+      window.addEventListener("snapbite_store_updated", loadData);
+      return () => window.removeEventListener("snapbite_store_updated", loadData);
+    }
+  }, [isAuthenticated]);
+
+  const handleAuthSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthError("");
+    setIsVerifying(true);
+
+    try {
+      const res = await fetch("/api/auth/super-admin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ secretKey: securityKey }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setIsAuthenticated(true);
+        setSecurityKey("");
+      } else {
+        setAuthError(data.error || "Access Denied: Invalid Security Key.");
+      }
+    } catch (e: any) {
+      setAuthError("Authentication request failed.");
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    await fetch("/api/auth/super-admin", { method: "DELETE" });
+    setIsAuthenticated(false);
+  };
 
   const handleCreateRestaurant = (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,6 +112,10 @@ export default function SuperAdminPage() {
       opening_time: "10:00 AM",
       closing_time: "11:00 PM",
       is_active: true,
+      bkash_enabled: true,
+      bkash_number: "01712345678",
+      cash_enabled: true,
+      order_tracking_enabled: true,
     });
 
     setNewRestName("");
@@ -70,6 +132,104 @@ export default function SuperAdminPage() {
     loadData();
   };
 
+  // Loading state
+  if (isAuthenticated === null) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center text-slate-400">
+        <Loader2 className="w-8 h-8 text-orange-500 animate-spin" />
+      </div>
+    );
+  }
+
+  // 1. LOCKED / PROTECTED GATE VIEW
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-center items-center p-4 selection:bg-orange-500 selection:text-white">
+        <div className="fixed inset-0 bg-[radial-gradient(circle_at_top,_var(--tw-gradient-stops))] from-red-950/30 via-slate-950 to-slate-950 pointer-events-none" />
+
+        <div className="w-full max-w-md relative z-10 space-y-6">
+          <div className="text-center space-y-2">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-red-600 to-orange-500 mx-auto flex items-center justify-center text-white shadow-xl shadow-red-600/20">
+              <Lock className="w-7 h-7" />
+            </div>
+            <h1 className="text-2xl font-black text-white tracking-tight pt-2">
+              SaaS Master Console
+            </h1>
+            <p className="text-xs text-slate-400">
+              Restricted Area • Authorized Platform Administrators Only
+            </p>
+          </div>
+
+          <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl backdrop-blur-xl space-y-5">
+            {authError && (
+              <div className="p-3.5 rounded-2xl bg-red-500/10 border border-red-500/30 flex items-start gap-2.5 text-xs text-red-300 font-semibold animate-fadeIn">
+                <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+                <span>{authError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleAuthSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">
+                  Master Security Key
+                </label>
+                <div className="relative">
+                  <KeyRound className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type={showKey ? "text" : "password"}
+                    required
+                    value={securityKey}
+                    onChange={(e) => setSecurityKey(e.target.value)}
+                    placeholder="Enter SaaS master key..."
+                    className="w-full pl-10 pr-10 py-3 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-orange-500/40 focus:border-orange-500 font-mono"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowKey(!showKey)}
+                    className="p-1 text-slate-400 hover:text-slate-200 absolute right-3 top-1/2 -translate-y-1/2"
+                  >
+                    {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+                <p className="text-[10px] text-slate-500 mt-1.5">
+                  Configure via <code>SUPER_ADMIN_KEY</code> in environment variables.
+                </p>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isVerifying}
+                className="w-full py-3.5 px-4 bg-orange-600 hover:bg-orange-500 disabled:bg-slate-800 text-white font-extrabold text-xs sm:text-sm rounded-xl shadow-lg shadow-orange-600/30 flex items-center justify-center gap-2 active:scale-95 transition-all"
+              >
+                {isVerifying ? (
+                  <span className="flex items-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Verifying Master Access...</span>
+                  </span>
+                ) : (
+                  <>
+                    <span>Unlock Master Console</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
+              </button>
+            </form>
+          </div>
+
+          <div className="text-center">
+            <Link
+              href="/"
+              className="text-xs font-semibold text-slate-500 hover:text-slate-300 transition-colors"
+            >
+              ← Return to Main Page
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 2. UNLOCKED SUPER ADMIN DASHBOARD
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 p-4 sm:p-8">
       <div className="max-w-6xl mx-auto space-y-8">
@@ -84,8 +244,8 @@ export default function SuperAdminPage() {
                 <h1 className="text-2xl font-black text-white tracking-tight">
                   SnapBite SaaS Super Admin
                 </h1>
-                <span className="px-2 py-0.5 rounded-full bg-red-500/20 text-red-400 text-[10px] font-black border border-red-500/30">
-                  ROOT ACCESS
+                <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-black border border-emerald-500/30">
+                  ROOT VERIFIED
                 </span>
               </div>
               <p className="text-xs text-slate-400">
@@ -103,12 +263,13 @@ export default function SuperAdminPage() {
               <span>Provision New Restaurant</span>
             </button>
 
-            <Link
-              href="/admin"
-              className="px-3.5 py-2.5 bg-slate-900 hover:bg-slate-800 text-slate-300 font-bold text-xs rounded-xl border border-slate-800 transition-colors"
+            <button
+              onClick={handleLogout}
+              className="px-3.5 py-2.5 bg-slate-900 hover:bg-red-950/60 text-slate-300 hover:text-red-400 font-bold text-xs rounded-xl border border-slate-800 hover:border-red-800/60 transition-all flex items-center gap-1.5"
             >
-              Back to Restaurant Admin
-            </Link>
+              <LogOut className="w-4 h-4" />
+              <span>Lock Console</span>
+            </button>
           </div>
         </div>
 
@@ -129,173 +290,200 @@ export default function SuperAdminPage() {
           </div>
 
           <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl">
-            <span className="text-xs font-bold text-slate-400 uppercase">SaaS Platform MRR</span>
-            <div className="text-2xl font-black text-white mt-1">৳48,500 / mo</div>
-            <div className="text-[11px] text-emerald-400 font-semibold mt-1">+22% month-over-month</div>
+            <span className="text-xs font-bold text-slate-400 uppercase">Total Tables</span>
+            <div className="text-2xl font-black text-white mt-1">
+              {restaurants.reduce((acc, r) => acc + SnapBiteStore.getTables(r.id).length, 0)}
+            </div>
+            <div className="text-[11px] text-emerald-400 font-semibold mt-1">Active QR dining spots</div>
           </div>
 
           <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl">
-            <span className="text-xs font-bold text-slate-400 uppercase">Total QR Orders</span>
-            <div className="text-2xl font-black text-white mt-1">1,248</div>
-            <div className="text-[11px] text-orange-400 font-semibold mt-1">Processed without app install</div>
+            <span className="text-xs font-bold text-slate-400 uppercase">Total Orders</span>
+            <div className="text-2xl font-black text-white mt-1">
+              {restaurants.reduce((acc, r) => acc + SnapBiteStore.getOrders(r.id).length, 0)}
+            </div>
+            <div className="text-[11px] text-orange-400 font-semibold mt-1">Processed across tenants</div>
           </div>
         </div>
 
-        {/* Restaurants Directory */}
-        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-4 shadow-xl">
-          <div className="flex items-center justify-between">
-            <h3 className="text-base font-extrabold text-white">Registered Restaurants</h3>
-            <span className="text-xs text-slate-400">{restaurants.length} total businesses</span>
+        {/* Restaurants Management Table */}
+        <div className="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-xl">
+          <div className="p-6 border-b border-slate-800 flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-black text-white">Provisioned Restaurant Tenants</h2>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Manage isolation, tenant statuses, and direct access links.
+              </p>
+            </div>
+            <span className="text-xs font-bold text-slate-500">
+              {restaurants.length} Active Organizations
+            </span>
           </div>
 
-          <div className="divide-y divide-slate-800/80">
-            {restaurants.map((rest) => (
-              <div
-                key={rest.id}
-                className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
-              >
-                <div className="flex items-center gap-3 min-w-0">
-                  {rest.logo_url ? (
-                    <img
-                      src={rest.logo_url}
-                      alt=""
-                      className="w-12 h-12 rounded-2xl object-cover border border-slate-700 shrink-0"
-                    />
-                  ) : (
-                    <div className="w-12 h-12 rounded-2xl bg-orange-600 text-white flex items-center justify-center font-black shrink-0">
-                      SB
-                    </div>
-                  )}
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs text-slate-300">
+              <thead className="bg-slate-950/60 uppercase tracking-wider text-[11px] text-slate-400 border-b border-slate-800">
+                <tr>
+                  <th className="py-3.5 px-4 font-bold">Restaurant</th>
+                  <th className="py-3.5 px-4 font-bold">Slug / Token</th>
+                  <th className="py-3.5 px-4 font-bold">Tables</th>
+                  <th className="py-3.5 px-4 font-bold">Menu Items</th>
+                  <th className="py-3.5 px-4 font-bold">Currency</th>
+                  <th className="py-3.5 px-4 font-bold">Status</th>
+                  <th className="py-3.5 px-4 font-bold text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800/60">
+                {restaurants.map((rest) => {
+                  const tablesCount = SnapBiteStore.getTables(rest.id).length;
+                  const menuCount = SnapBiteStore.getMenuItems(rest.id).length;
 
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <h4 className="font-extrabold text-white text-base truncate">{rest.name}</h4>
-                      <span
-                        className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${
-                          rest.is_active
-                            ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
-                            : "bg-red-500/20 text-red-400 border border-red-500/30"
-                        }`}
-                      >
-                        {rest.is_active ? "Active" : "Suspended"}
-                      </span>
-                    </div>
+                  return (
+                    <tr key={rest.id} className="hover:bg-slate-800/40 transition-colors">
+                      <td className="py-3.5 px-4 font-bold text-white flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-lg bg-orange-600/20 text-orange-400 flex items-center justify-center font-bold text-xs shrink-0">
+                          {rest.name.slice(0, 2).toUpperCase()}
+                        </div>
+                        <div>
+                          <div>{rest.name}</div>
+                          <div className="text-[10px] text-slate-500 font-normal">
+                            {rest.phone || "No phone"}
+                          </div>
+                        </div>
+                      </td>
 
-                    <div className="flex flex-wrap items-center gap-3 text-xs text-slate-400 mt-1">
-                      <span>Slug: <code className="text-orange-400">/r/{rest.slug}</code></span>
-                      <span>•</span>
-                      <span>Currency: {rest.currency}</span>
-                      <span>•</span>
-                      <span>Tax: {rest.tax_percentage}%</span>
-                    </div>
-                  </div>
-                </div>
+                      <td className="py-3.5 px-4 font-mono text-slate-400">{rest.slug}</td>
 
-                {/* Actions */}
-                <div className="flex items-center gap-2 self-end sm:self-auto">
-                  <Link
-                    href={`/r/${rest.slug}/t/tbl_tok_01_snap`}
-                    target="_blank"
-                    className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs flex items-center gap-1 transition-colors"
-                  >
-                    <span>View Menu</span>
-                    <ExternalLink className="w-3.5 h-3.5" />
-                  </Link>
+                      <td className="py-3.5 px-4 font-bold text-slate-200">{tablesCount} Tables</td>
 
-                  <button
-                    onClick={() => handleToggleStatus(rest)}
-                    className={`px-3 py-1.5 rounded-xl font-bold text-xs border transition-all ${
-                      rest.is_active
-                        ? "bg-red-500/10 hover:bg-red-500/20 text-red-400 border-red-500/30"
-                        : "bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
-                    }`}
-                  >
-                    {rest.is_active ? "Suspend Tenant" : "Reactivate Tenant"}
-                  </button>
-                </div>
+                      <td className="py-3.5 px-4 text-slate-300">{menuCount} Items</td>
+
+                      <td className="py-3.5 px-4 font-mono font-bold text-orange-400">
+                        {rest.currency}
+                      </td>
+
+                      <td className="py-3.5 px-4">
+                        <span
+                          className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider ${
+                            rest.is_active
+                              ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                              : "bg-red-500/20 text-red-400 border border-red-500/30"
+                          }`}
+                        >
+                          {rest.is_active ? "Active" : "Suspended"}
+                        </span>
+                      </td>
+
+                      <td className="py-3.5 px-4 text-right space-x-2">
+                        <Link
+                          href={`/r/${rest.slug}/t/tbl_tok_01_snap`}
+                          target="_blank"
+                          className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-bold inline-flex items-center gap-1 transition-colors"
+                        >
+                          <span>Menu</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </Link>
+
+                        <button
+                          onClick={() => handleToggleStatus(rest)}
+                          className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-colors ${
+                            rest.is_active
+                              ? "bg-red-950/40 text-red-400 hover:bg-red-900/60"
+                              : "bg-emerald-950/40 text-emerald-400 hover:bg-emerald-900/60"
+                          }`}
+                        >
+                          {rest.is_active ? "Suspend" : "Activate"}
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      {/* Provision Restaurant Modal */}
+      {isAddOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="relative w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl animate-scale">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-800 mb-4">
+              <div className="flex items-center gap-2">
+                <Building2 className="w-5 h-5 text-orange-500" />
+                <h3 className="font-black text-white text-base">Provision New Restaurant Tenant</h3>
               </div>
-            ))}
-          </div>
-        </div>
+              <button
+                onClick={() => setIsAddOpen(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
 
-        {/* Modal Provision Restaurant */}
-        {isAddOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-            <div className="relative w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl space-y-4">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                <h3 className="text-lg font-black text-white">Provision New Restaurant Tenant</h3>
+            <form onSubmit={handleCreateRestaurant} className="space-y-4 text-xs">
+              <div>
+                <label className="block text-slate-400 font-bold mb-1">Restaurant Name</label>
+                <input
+                  type="text"
+                  required
+                  value={newRestName}
+                  onChange={(e) => {
+                    setNewRestName(e.target.value);
+                    if (!newRestSlug) {
+                      setNewRestSlug(
+                        e.target.value.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-")
+                      );
+                    }
+                  }}
+                  placeholder="e.g. Sultan's Dine"
+                  className="w-full px-3 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white outline-none focus:ring-2 focus:ring-orange-500/40"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-400 font-bold mb-1">Unique URL Slug</label>
+                <input
+                  type="text"
+                  required
+                  value={newRestSlug}
+                  onChange={(e) => setNewRestSlug(e.target.value)}
+                  placeholder="e.g. sultans-dine"
+                  className="w-full px-3 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white outline-none focus:ring-2 focus:ring-orange-500/40 font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-400 font-bold mb-1">Currency Symbol</label>
+                <input
+                  type="text"
+                  required
+                  value={newRestCurrency}
+                  onChange={(e) => setNewRestCurrency(e.target.value)}
+                  placeholder="৳"
+                  className="w-full px-3 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white outline-none focus:ring-2 focus:ring-orange-500/40 font-bold"
+                />
+              </div>
+
+              <div className="pt-3 border-t border-slate-800 flex justify-end gap-2">
                 <button
+                  type="button"
                   onClick={() => setIsAddOpen(false)}
-                  className="p-1 rounded-full text-slate-400 hover:text-white"
+                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl"
                 >
-                  <X className="w-5 h-5" />
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-orange-600 hover:bg-orange-500 text-white font-black rounded-xl shadow-md"
+                >
+                  Create Organization
                 </button>
               </div>
-
-              <form onSubmit={handleCreateRestaurant} className="space-y-3 text-xs">
-                <div>
-                  <label className="font-bold text-slate-300 block mb-1">Restaurant Name</label>
-                  <input
-                    type="text"
-                    required
-                    value={newRestName}
-                    onChange={(e) => {
-                      setNewRestName(e.target.value);
-                      if (!newRestSlug) {
-                        setNewRestSlug(
-                          e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")
-                        );
-                      }
-                    }}
-                    placeholder="e.g. Bella Italia Bistro"
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:ring-2 focus:ring-orange-500/40 outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="font-bold text-slate-300 block mb-1">URL Identifier (Slug)</label>
-                  <input
-                    type="text"
-                    required
-                    value={newRestSlug}
-                    onChange={(e) => setNewRestSlug(e.target.value)}
-                    placeholder="e.g. bella-italia"
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-orange-400 font-mono focus:ring-2 focus:ring-orange-500/40 outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="font-bold text-slate-300 block mb-1">Currency Symbol</label>
-                  <input
-                    type="text"
-                    required
-                    value={newRestCurrency}
-                    onChange={(e) => setNewRestCurrency(e.target.value)}
-                    placeholder="e.g. ৳, $, €"
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white focus:ring-2 focus:ring-orange-500/40 outline-none font-bold"
-                  />
-                </div>
-
-                <div className="pt-3 flex justify-end gap-2 border-t border-slate-800">
-                  <button
-                    type="button"
-                    onClick={() => setIsAddOpen(false)}
-                    className="px-4 py-2 border border-slate-800 rounded-xl text-slate-400 font-bold"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-5 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-xl font-bold shadow-lg shadow-orange-600/30"
-                  >
-                    Provision Tenant
-                  </button>
-                </div>
-              </form>
-            </div>
+            </form>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

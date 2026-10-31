@@ -215,14 +215,11 @@ export default function HomePage() {
           </div>
 
           <div className="flex items-center gap-4">
-            <Link href="/admin" className="hover:text-slate-300">
-              Admin Overview
+            <Link href="/login" className="hover:text-slate-300">
+              Restaurant Login
             </Link>
             <Link href="/kitchen" className="hover:text-slate-300">
               Kitchen Display
-            </Link>
-            <Link href="/super-admin" className="hover:text-slate-300">
-              Super Admin
             </Link>
           </div>
         </div>
