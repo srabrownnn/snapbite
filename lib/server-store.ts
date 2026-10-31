@@ -33,6 +33,7 @@ import {
   INITIAL_USERS,
 } from "./store/demo-data";
 import { generateOrderNumber, generateToken } from "./utils";
+import { UniversalDB } from "./db/universal-adapter";
 
 const PERSISTENCE_FILE = path.join(os.tmpdir(), "snapbite_server_store.json");
 
@@ -53,7 +54,7 @@ function loadPersistedState() {
 export function savePersistedState() {
   try {
     if (global.__SNAPBITE_SERVER_STORE__) {
-      fs.writeFileSync(PERSISTENCE_FILE, JSON.stringify(global.__SNAPBITE_SERVER_STORE__), "utf-8");
+      UniversalDB.saveState(global.__SNAPBITE_SERVER_STORE__).catch(() => {});
     }
   } catch (e) {
     // Ignore write errors
@@ -94,6 +95,18 @@ if (!global.__SNAPBITE_SERVER_STORE__) {
       users: INITIAL_USERS,
     };
   }
+}
+
+// Background cloud database hydration if PostgreSQL or MongoDB is configured in environment
+if (typeof window === "undefined") {
+  UniversalDB.loadState()
+    .then((cloudState) => {
+      if (cloudState && Array.isArray(cloudState.tables) && cloudState.tables.length > 0) {
+        if (!cloudState.users) cloudState.users = INITIAL_USERS;
+        global.__SNAPBITE_SERVER_STORE__ = cloudState;
+      }
+    })
+    .catch(() => {});
 }
 
 const store = global.__SNAPBITE_SERVER_STORE__!;

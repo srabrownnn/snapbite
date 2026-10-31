@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { UniversalDB } from "@/lib/db/universal-adapter";
 
 export const dynamic = "force-dynamic";
 
@@ -9,12 +10,18 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const startTime = Date.now();
   const uptime = Math.floor(process.uptime ? process.uptime() : 0);
+  const dbHealth = await UniversalDB.getHealth();
 
   return NextResponse.json({
     product: "SnapBite QR Restaurant OS",
     slug: "snapbite",
-    status: "operational",
+    status: dbHealth.connected ? "operational" : "degraded",
     version: "1.0.0",
+    database: {
+      provider: dbHealth.provider,
+      connected: dbHealth.connected,
+      details: dbHealth.details,
+    },
     uptime_seconds: uptime,
     environment: process.env.NODE_ENV || "development",
     timestamp: new Date().toISOString(),
